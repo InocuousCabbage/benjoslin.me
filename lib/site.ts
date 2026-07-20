@@ -6,9 +6,12 @@
 export const site = {
   name: "Ben Joslin",
   domain: "benjoslin.me",
+  // github handle is `benjoslin` (verified 200). The Vercel team ID
+  // benjoslin7-5934s-projects is a signup artifact and is not Ben's handle
+  // on any other platform.
   socials: {
     linkedin: "https://www.linkedin.com/in/benjoslin/",
-    github: "https://github.com/benjoslin7",
+    github: "https://github.com/benjoslin",
     instagram: "https://www.instagram.com/benjoslin/",
   },
 } as const;

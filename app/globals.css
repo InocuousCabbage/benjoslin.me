@@ -100,20 +100,24 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Hide the native cursor site-wide; the custom sphere cursor becomes the
-     * visible pointer. Keep native cursor on form inputs via the override
-     * below so text editing stays sane. */
+  }
+  /* Hide the native cursor ONLY when SphereCursor is actually mounted and
+   * running. SphereCursor sets `data-sphere-cursor="active"` on <html> when
+   * it decides to render (see components/sphere-cursor.tsx). Without this
+   * scope, hybrid devices where the sphere bails (touch iPad + Magic
+   * Keyboard) would lose the cursor entirely with nothing to replace it. */
+  html[data-sphere-cursor="active"] body {
     cursor: none;
   }
-  input,
-  textarea,
-  select {
+  html[data-sphere-cursor="active"] input,
+  html[data-sphere-cursor="active"] textarea,
+  html[data-sphere-cursor="active"] select {
     cursor: text;
   }
   html {
-    @apply font-sans;
     /* Fallback: if next/font fails to load Raleway or Roboto, fall back to
-     * platform system stacks (not Times New Roman). */
+     * platform system stacks (not Times New Roman). Explicit here rather
+     * than via @apply so the fallback chain is visible at the source. */
     font-family: var(--font-roboto, -apple-system, BlinkMacSystemFont, "Segoe UI",
       "Helvetica Neue", Arial, sans-serif);
   }
@@ -132,12 +136,5 @@
   }
   a:hover {
     color: var(--hover-blue);
-  }
-  /* Reduced-motion users: kill the fixed-position cursor easing lag and
-   * restore the native cursor so nothing feels stuck. */
-  @media (prefers-reduced-motion: reduce) {
-    body {
-      cursor: auto;
-    }
   }
 }

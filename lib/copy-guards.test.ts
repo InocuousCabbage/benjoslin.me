@@ -10,9 +10,7 @@
  *   cutting-edge, utilize, furthermore, moreover, "in conclusion", "it is
  *   important to note"). Case-insensitive.
  * - No aspirational-completeness "done" phrasings (done look, done every visit,
- *   etc). Ben's Bellamy-context lesson generalized to this codebase; if a
- *   phrase surfaces here without the aspirational sense, keep the guard tight
- *   and rephrase.
+ *   etc). Ben's Bellamy-context lesson generalized to this codebase.
  * - No #morethanjustlawns (Bellamy holdover; keep the pattern of banning
  *   inherited-Squarespace hashtags in one place).
  *
@@ -20,26 +18,35 @@
  * banned literals as assertion strings).
  */
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { homeCards, site } from "@/lib/site";
 
 const REPO_ROOT = join(__dirname, "..");
 
-function grepScanned(pattern: string): string[] {
-  // Scan app/, components/, lib/ (the source tree). Any hit outside this
-  // test file itself is a real violation.
-  try {
-    const out = execSync(
-      `grep -rln -F ${JSON.stringify(pattern)} app components lib`,
-      { cwd: REPO_ROOT, encoding: "utf-8" },
-    );
-    return out.split("\n").filter((line) => line && !line.endsWith("copy-guards.test.ts"));
-  } catch (err) {
-    const e = err as { status?: number };
-    if (e.status === 1) return [];
-    throw err;
+/**
+ * Shell-free grep. Uses spawnSync with an argv array so patterns containing
+ * shell metacharacters ($, backtick, \) cannot escape the argument.
+ */
+function grepScanned(pattern: string, opts?: { ignoreCase?: boolean }): string[] {
+  const args = [
+    "-rln",
+    ...(opts?.ignoreCase ? ["-i"] : []),
+    "-F",
+    pattern,
+    "app",
+    "components",
+    "lib",
+  ];
+  const result = spawnSync("grep", args, { cwd: REPO_ROOT, encoding: "utf-8" });
+  if (result.status === 1) return []; // grep exits 1 on no match, expected.
+  if (result.status !== 0) {
+    throw new Error(`grep failed: status=${result.status} stderr=${result.stderr}`);
   }
+  return (result.stdout || "")
+    .split("\n")
+    .filter((line) => line && !line.endsWith("copy-guards.test.ts"));
 }
 
 describe("copy-guards", () => {
@@ -76,32 +83,12 @@ describe("copy-guards", () => {
       "it is important to note",
     ];
     for (const term of AI_TELLS) {
-      let hits: string[];
-      try {
-        const out = execSync(
-          `grep -rlni -F ${JSON.stringify(term)} app components lib`,
-          { cwd: REPO_ROOT, encoding: "utf-8" },
-        );
-        hits = out
-          .split("\n")
-          .filter((line) => line && !line.endsWith("copy-guards.test.ts"));
-      } catch (err) {
-        const e = err as { status?: number };
-        if (e.status === 1) {
-          hits = [];
-        } else {
-          throw err;
-        }
-      }
+      const hits = grepScanned(term, { ignoreCase: true });
       expect(hits, `AI-tell "${term}" found in: ${hits.join(", ")}`).toEqual([]);
     }
   });
 
   it("does not ship aspirational-completeness 'done' phrasings", () => {
-    // "done" in the aspirational-completeness sense reads as unfinished-
-    // feeling per Ben's Bellamy-context lesson. Operational-done phrasings
-    // ("gets the work done right", "we're done for the day") stay legal
-    // via the specificity of the ban list.
     const asp = [
       "a done one",
       "looking done",
@@ -120,21 +107,18 @@ describe("copy-guards", () => {
     }
   });
 
-  // Broadened em-dash guard: also scan repo-root user-visible markdown
-  // (README.md and any future BRAINDUMP.md / DISCOVERY.md). AGENTS.md is
-  // intentionally NOT scanned: agent-internal content, not user-visible.
+  // Broadened em-dash guard: scan ALL user-visible root markdown files
+  // (auto-discovered via readdirSync). AGENTS.md is intentionally excluded:
+  // agent-internal content, not user-visible. v1-HISTORICAL sections inside
+  // any doc are scoped out via a regex anchor.
   it("does not ship authored em dash (U+2014) in user-visible root markdown", () => {
-    const rootDocs = ["README.md", "BRAINDUMP.md", "DISCOVERY.md"];
+    const rootDocs = readdirSync(REPO_ROOT).filter(
+      (f) => f.endsWith(".md") && f !== "AGENTS.md",
+    );
     const violations: string[] = [];
     for (const doc of rootDocs) {
       const path = join(REPO_ROOT, doc);
-      let text: string;
-      try {
-        text = readFileSync(path, "utf-8");
-      } catch {
-        continue;
-      }
-      // If a v1 HISTORICAL section marker exists, only scan content BEFORE it.
+      const text = readFileSync(path, "utf-8");
       const historicalMarker = /^##\s+.*\bv1 HISTORICAL\b/m;
       const match = historicalMarker.exec(text);
       const authoredContent = match ? text.slice(0, match.index) : text;
@@ -147,32 +131,51 @@ describe("copy-guards", () => {
     }
     expect(violations).toEqual([]);
   });
+
+  // xhigh iter-1 ironic-miss n=5 addition: URL validity in site.ts + JSON-LD.
+  // A broken external URL (github.com/benjoslin7 shipped in iter-0) would
+  // have been caught by an offline shape check. We do a shape check here
+  // (not a live curl, to keep tests hermetic); the CI-side / pre-merge
+  // live-URL sweep should be a separate operational check.
+  it("site.socials URLs match known-good shape (no signup-artifact drift)", () => {
+    // GitHub handle must NOT contain the Vercel signup-artifact "7" suffix
+    // that leaked from the team ID in Phase 0. If someone re-copies from
+    // team_id, this catches it.
+    expect(site.socials.github).toMatch(/^https:\/\/github\.com\/[^/7][^/]*\/?$/);
+    expect(site.socials.linkedin).toMatch(
+      /^https:\/\/www\.linkedin\.com\/in\/[^/]+\/?$/,
+    );
+    expect(site.socials.instagram).toMatch(
+      /^https:\/\/www\.instagram\.com\/[^/]+\/?$/,
+    );
+  });
 });
 
 describe("structural expectations", () => {
   it("home page uses the site.name from lib/site.ts (no hard-coded 'Ben Joslin' string)", () => {
-    // The home hero should reference site.name so a future rename doesn't
-    // silently drift on the home page while the layout metadata updates.
     const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
     expect(home).toContain("site.name");
-    // Belt-and-suspenders: no literal "Ben Joslin" hard-coded in the home
-    // page (this would sidestep the site.name single source of truth).
-    expect(home).not.toContain('"Ben Joslin"');
-    expect(home).not.toContain("'Ben Joslin'");
+    // xhigh iter-1 F4: also guard against bare JSX text `<h1>Ben Joslin</h1>`
+    // which would sidestep the single-source-of-truth without a quoted string.
+    expect(home).not.toMatch(/Ben\s+Joslin/);
   });
 
   it("home page does not include an <img> or Next Image (no headshot per Ben spec)", () => {
     const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
-    // Guard against reintroducing a hero headshot. If Ben ever wants one,
-    // update this test to allow it explicitly.
     expect(home).not.toMatch(/<img\b/i);
     expect(home).not.toMatch(/from ["']next\/image["']/);
   });
 
-  it("layout registers Raleway + Roboto next/font families", () => {
+  it("layout registers Raleway + Roboto next/font families (as function calls, not just imports)", () => {
     const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
-    expect(layout).toMatch(/Raleway\s*[,(]/);
-    expect(layout).toMatch(/Roboto\s*[,(]/);
+    // xhigh iter-1 F6: assert the FUNCTION CALL, not just the import symbol,
+    // so a refactor that drops the call site but keeps the import is caught.
+    expect(layout).toContain("Raleway(");
+    expect(layout).toContain("Roboto(");
+    // Belt-and-suspenders: the CSS variable must be wired onto <html> so
+    // the font is actually applied, not just imported.
+    expect(layout).toMatch(/raleway\.variable/);
+    expect(layout).toMatch(/roboto\.variable/);
   });
 
   it("layout renders SphereCursor and SiteFooter", () => {
@@ -181,19 +184,30 @@ describe("structural expectations", () => {
     expect(layout).toContain("<SiteFooter");
   });
 
-  it("layout ships JSON-LD Person schema (not LocalBusiness)", () => {
+  it("layout ships schema.org Person JSON-LD (not a business type)", () => {
     const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
     expect(layout).toContain('"@type": "Person"');
-    expect(layout).not.toContain("LocalBusiness");
+    // Ban common business schema types on the personal site.
+    for (const businessType of ["LocalBusiness", "Organization", "Corporation"]) {
+      expect(layout).not.toContain(`"@type": "${businessType}"`);
+    }
   });
 
   it("home lists exactly the 5 spec'd section cards", () => {
-    const siteFile = readFileSync(join(REPO_ROOT, "lib", "site.ts"), "utf-8");
-    // Count title:"..." lines within homeCards. Simpler than parsing TS.
-    const homeCardsBlock = siteFile.match(/homeCards\s*=\s*\[([\s\S]*?)\]\s*as const;/)?.[1];
-    expect(homeCardsBlock).toBeDefined();
-    // Word-boundary `\btitle:` so "subtitle:" doesn't also match.
-    const titles = [...homeCardsBlock!.matchAll(/(?:^|\s|,|\{)title:\s*"([^"]+)"/g)].map((m) => m[1]);
+    // xhigh iter-1 F13: import homeCards directly rather than parsing source
+    // text with regex. Fails on ordering drift AND on missing/extra entries.
+    const titles = homeCards.map((c) => c.title);
     expect(titles).toEqual(["Career", "Education", "Projects", "Photo", "Music"]);
+  });
+
+  it("sphere-cursor returns null when reduced-motion or coarse-pointer bails", () => {
+    // xhigh iter-1 F2 codification: assert the SOURCE has the early-return
+    // pattern (`if (!active) return null;`) so a future rewrite doesn't
+    // re-introduce the stuck-black-square regression.
+    const src = readFileSync(
+      join(REPO_ROOT, "components", "sphere-cursor.tsx"),
+      "utf-8",
+    );
+    expect(src).toMatch(/if\s*\(\s*!active\s*\)\s*return\s*null\s*;/);
   });
 });

@@ -21,10 +21,10 @@ export default function Home() {
           <Link
             key={card.href}
             href={card.href}
-            className="group flex items-start justify-between gap-6 rounded-lg border border-border bg-card px-6 py-6 transition-colors hover:border-[color:var(--hover-blue)]"
+            className="group flex items-start justify-between gap-6 rounded-lg border border-border bg-card px-6 py-6 transition-colors hover:border-hover-blue"
           >
             <div>
-              <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground group-hover:text-[color:var(--hover-blue)] sm:text-3xl">
+              <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground group-hover:text-hover-blue sm:text-3xl">
                 {card.title}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground sm:text-base">
@@ -33,7 +33,7 @@ export default function Home() {
             </div>
             <span
               aria-hidden
-              className="pt-2 text-2xl text-muted-foreground transition-colors group-hover:text-[color:var(--hover-blue)]"
+              className="pt-2 text-2xl text-muted-foreground transition-colors group-hover:text-hover-blue"
             >
               &rarr;
             </span>

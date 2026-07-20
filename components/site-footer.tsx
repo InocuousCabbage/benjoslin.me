@@ -1,9 +1,11 @@
-import Link from "next/link";
 import { site } from "@/lib/site";
 
 /**
- * Minimal footer. Ben's spec: LinkedIn + GitHub + Instagram only, no X/Twitter,
- * no contact form, no other socials.
+ * Minimal footer. Ben's spec: LinkedIn + GitHub + Instagram only, no
+ * X/Twitter, no contact form, no other socials.
+ *
+ * Uses plain <a> instead of next/link for social URLs: next/link's prefetch
+ * / client-nav machinery adds zero value for absolute external URLs.
  */
 export function SiteFooter() {
   const socials: Array<{ label: string; href: string }> = [
@@ -18,15 +20,15 @@ export function SiteFooter() {
         <p>&copy; {new Date().getFullYear()} {site.name}</p>
         <nav aria-label="Socials" className="flex gap-5">
           {socials.map((s) => (
-            <Link
+            <a
               key={s.href}
               href={s.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground hover:text-[color:var(--hover-blue)]"
+              className="text-foreground hover:text-hover-blue"
             >
               {s.label}
-            </Link>
+            </a>
           ))}
         </nav>
       </div>
