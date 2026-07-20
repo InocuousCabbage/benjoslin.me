@@ -132,22 +132,24 @@ describe("copy-guards", () => {
     expect(violations).toEqual([]);
   });
 
-  // xhigh iter-1 ironic-miss n=5 addition: URL validity in site.ts + JSON-LD.
-  // A broken external URL (github.com/benjoslin7 shipped in iter-0) would
-  // have been caught by an offline shape check. We do a shape check here
-  // (not a live curl, to keep tests hermetic); the CI-side / pre-merge
-  // live-URL sweep should be a separate operational check.
-  it("site.socials URLs match known-good shape (no signup-artifact drift)", () => {
-    // GitHub handle must NOT contain the Vercel signup-artifact "7" suffix
-    // that leaked from the team ID in Phase 0. If someone re-copies from
-    // team_id, this catches it.
-    expect(site.socials.github).toMatch(/^https:\/\/github\.com\/[^/7][^/]*\/?$/);
-    expect(site.socials.linkedin).toMatch(
-      /^https:\/\/www\.linkedin\.com\/in\/[^/]+\/?$/,
-    );
-    expect(site.socials.instagram).toMatch(
-      /^https:\/\/www\.instagram\.com\/[^/]+\/?$/,
-    );
+  // xhigh iter-1 ironic-miss n=5 -> iter-2 F16 ironic-miss n=6 fix.
+  // The iter-1 URL-shape regex was tautological (`[^/7]` only rejected
+  // handles STARTING with 7, not containing 7; `benjoslin7` still passed).
+  // Pin the exact known-good URLs; split per social so a failure on one
+  // handle doesn't hide the state of the other two (vitest short-circuits
+  // on the first expect failure within an `it` block).
+  //
+  // Adversarially verified iter-2: temporarily rewrote all three URLs to
+  // .../benjoslin7/... and confirmed the tests fail; reverted and confirmed
+  // green.
+  it("site.socials.github pins to Ben's exact known handle", () => {
+    expect(site.socials.github).toBe("https://github.com/benjoslin");
+  });
+  it("site.socials.linkedin pins to Ben's exact known handle", () => {
+    expect(site.socials.linkedin).toBe("https://www.linkedin.com/in/benjoslin/");
+  });
+  it("site.socials.instagram pins to Ben's exact known handle", () => {
+    expect(site.socials.instagram).toBe("https://www.instagram.com/benjoslin/");
   });
 });
 
