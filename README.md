@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# benjoslin.me
 
-## Getting Started
+Ben Joslin's personal website. Next.js 16 App Router + Tailwind v4 + shadcn/ui + sharp, deployed on Vercel.
 
-First, run the development server:
+## Local dev
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+```
 
-## Learn More
+Runs `vitest`. Copy guards enforce Ben's standing rules (no em dashes, no AI-tell adjectives, no aspirational-completeness "done" phrasings) plus a few structural expectations about the home page and layout.
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js 16 (App Router, TypeScript, SSG)
+- Tailwind v4 with shadcn/ui primitives (Card, Button, Badge)
+- next/font for Raleway (display) + Roboto (body)
+- sharp for image processing (Bellamy-proven pipeline)
+- vitest for the copy-guards + structural tests
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Structure
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/` App Router pages. Each of `/career`, `/education`, `/projects`, `/photo`, `/music` ships as a ComingSoon stub in Phase 0 and gets populated in later phases.
+- `components/` UI. `sphere-cursor.tsx` = the custom mix-blend-difference cursor that follows the mouse with a ~120ms trailing lag. `site-footer.tsx` = the minimal LinkedIn/GitHub/Instagram footer. `coming-soon.tsx` = the placeholder for stub routes.
+- `lib/site.ts` = canonical site facts (name, domain, socials) plus the home card ordering.
+- `lib/copy-guards.test.ts` = the regression guard suite.
