@@ -13,6 +13,7 @@ export default defineConfig({
     // (which don't touch the DOM but don't mind having it available).
     // Simpler than per-file environment matching for a small suite.
     environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
     include: [
       "lib/**/*.test.ts",
       "components/**/*.test.tsx",
