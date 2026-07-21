@@ -306,6 +306,22 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(home).not.toMatch(/Ben\s+Joslin/);
   });
 
+  it("home hero applies Enzo-matched vertical rhythm (iter-6 F-Ben-preview)", () => {
+    // Ben post-preview: "sizing above and below my name should be larger."
+    // Enzo hero compiled CSS: min-h-[58vh] md:min-h-[64vh] py-20 md:py-28
+    // items-center. Pin all four so a future refactor that shrinks the
+    // hero back to a tight py-16 fails loud.
+    const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
+    const heroMatch = home.match(/<header[\s\S]*?<\/header>/);
+    expect(heroMatch).not.toBeNull();
+    const hero = heroMatch![0];
+    expect(hero).toMatch(/min-h-\[58vh\]/);
+    expect(hero).toMatch(/md:min-h-\[64vh\]/);
+    expect(hero).toMatch(/py-20/);
+    expect(hero).toMatch(/md:py-28/);
+    expect(hero).toMatch(/items-center/);
+  });
+
   it("home page does not include a hero image (no headshot per Ben spec)", () => {
     const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
     // <img> is allowed in the optional footer-photo slot (conditional on
