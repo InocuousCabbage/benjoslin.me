@@ -662,12 +662,14 @@ describe("visual clone (enzosison.com pattern)", () => {
   it("tracks data (Phase 5 populate) pins Ben's 10 SoundCloud URLs in as-sent order", () => {
     expect(Array.isArray(tracks)).toBe(true);
     expect(tracks.length).toBe(10);
+    // Ben's post-populate reorder: "i-never-want-this-to-end" moved
+    // from position 5 to position 1; everything else shifts down.
     const expectedOrder = [
+      "https://soundcloud.com/ben_joslin/i-never-want-this-to-end",
       "https://soundcloud.com/ben_joslin/i_aint_even_jewelzformaster-6",
       "https://soundcloud.com/ben_joslin/0223a1",
       "https://soundcloud.com/ben_joslin/0123a1",
       "https://soundcloud.com/ben_joslin/0323a",
-      "https://soundcloud.com/ben_joslin/i-never-want-this-to-end",
       "https://soundcloud.com/ben_joslin/hedonism",
       "https://soundcloud.com/ben_joslin/mving_in_slowmotionm4a",
       "https://soundcloud.com/ben_joslin/shwmeluv",
