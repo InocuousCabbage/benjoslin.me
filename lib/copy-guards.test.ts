@@ -23,7 +23,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { homeCards, site } from "@/lib/site";
-import { career, education } from "@/lib/content";
+import { career, education, projects } from "@/lib/content";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -426,7 +426,7 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(f).not.toMatch(/<GlitchText>\{?[`'"][^`'"]*©/);
   });
 
-  it("[section] dynamic route excludes segments that have dedicated pages (Phase 2 M1)", () => {
+  it("[section] dynamic route excludes segments that have dedicated pages (Phase 2 M1 + Phase 3)", () => {
     // Iter-M1 codification: generateStaticParams must filter out any
     // segment that has its own app/<segment>/page.tsx so the build
     // doesn't emit duplicate ComingSoon routes AND so a delete of the
@@ -436,9 +436,10 @@ describe("visual clone (enzosison.com pattern)", () => {
       join(REPO_ROOT, "app", "[section]", "page.tsx"),
       "utf-8",
     );
-    // DEDICATED_ROUTES set contains /career + /education.
+    // DEDICATED_ROUTES set contains /career + /education + /projects.
     expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/career["']/);
     expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/education["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/projects["']/);
     // generateStaticParams filters using the exclusion set.
     expect(dyn).toMatch(/homeCards[\s\S]{0,200}\.filter\([\s\S]{0,80}DEDICATED_ROUTES\.has/);
     // cardForSegment also guards so a request that reaches the dynamic
@@ -523,6 +524,71 @@ describe("visual clone (enzosison.com pattern)", () => {
     // classes; the previous "Career log" phrase is gone.
     expect(p).not.toContain("Career log");
     expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Career\s*<\/h1>/);
+  });
+
+  // Phase 3: /projects content wire-up. Ben-approved one-liners + chips
+  // + order pinned exactly; changing them requires another Ben Y.
+  it("projects data (Phase 3) pins Ben-approved one-liners + chips + order", () => {
+    // Exact order per Ben: Lever, hiring-agent, mealprep.
+    expect(projects).toHaveLength(3);
+    expect(projects[0].name).toBe("Lever Marketing");
+    expect(projects[1].name).toBe("hiring-agent");
+    expect(projects[2].name).toBe("mealprep.benjoslin.me");
+    // URLs.
+    expect(projects[0].href).toBe("https://leverco.marketing");
+    expect(projects[1].href).toBe(
+      "https://github.com/InocuousCabbage/hiring-agent",
+    );
+    expect(projects[2].href).toBe("https://mealprep.benjoslin.me");
+    // One-liners are Ben-approved verbatim strings.
+    expect(projects[0].oneLiner).toBe(
+      "Fractional CMO strategy paired with custom AI agents that actually implement it.",
+    );
+    expect(projects[1].oneLiner).toBe(
+      "Personal hiring pipeline that ingests job alerts, tailors application materials, and can auto-apply to Greenhouse roles behind a Gmail approval loop.",
+    );
+    expect(projects[2].oneLiner).toBe(
+      "Meal-prep planner built on Lovable. Vercel migration in progress.",
+    );
+    // Chips per Ben's Y (Anthropic swap applied on hiring-agent).
+    expect(projects[0].chips).toEqual([
+      "Next.js",
+      "AI agents",
+      "Fractional CMO",
+      "Strategy Sprint",
+    ]);
+    expect(projects[1].chips).toEqual([
+      "Python",
+      "Playwright",
+      "Gmail API",
+      "Greenhouse",
+      "Anthropic",
+    ]);
+    expect(projects[2].chips).toEqual(["Lovable", "React"]);
+    // Optional-field discipline: mealprep has a note (migration
+    // pending); Lever + hiring-agent don't. Lever + hiring-agent have
+    // year; mealprep doesn't per "unknown start date, leave absent".
+    expect(projects[0].year).toBe("2026");
+    expect(projects[1].year).toBe("2026");
+    expect(projects[2].year).toBeUndefined();
+    expect(projects[0].note).toBeUndefined();
+    expect(projects[1].note).toBeUndefined();
+    expect(projects[2].note).toBe("Migration to Vercel pending");
+  });
+
+  it("Projects page wires ProjectList with the real projects data + dark theme + no-headshot", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "app", "projects", "page.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toMatch(/from ["']@\/components\/project-list["']/);
+    expect(p).toMatch(/<ProjectList\s+projects=\{projects\}/);
+    expect(p).toContain("text-white");
+    expect(p).not.toMatch(/<img\b/i);
+    expect(p).not.toMatch(/from ["']next\/image["']/);
+    // Eyebrow-only heading matches Phase 2 L1 pattern.
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Projects\s*<\/h1>/);
   });
 
   it("Education page wires EducationList with the real education data + dark theme + no-headshot", () => {

@@ -17,7 +17,7 @@ import { homeCards } from "@/lib/site";
  * duplicate ComingSoon routes and so a delete of the dedicated file
  * falls through to a 404 instead of silently reverting to a stub.
  */
-const DEDICATED_ROUTES = new Set(["/career", "/education"]);
+const DEDICATED_ROUTES = new Set(["/career", "/education", "/projects"]);
 
 export function generateStaticParams() {
   return homeCards

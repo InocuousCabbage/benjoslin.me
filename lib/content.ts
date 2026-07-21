@@ -88,3 +88,52 @@ export const education: Education[] = [
     coursework: [],
   },
 ];
+
+export type Project = {
+  name: string;
+  /** External URL that the "View project" affordance links to. */
+  href: string;
+  /** One-liner describing what the project does. Ben-approved copy. */
+  oneLiner: string;
+  /** Tech / positioning chips shown as small pills on the card. */
+  chips: string[];
+  /** Optional start year or year range. Rendered when non-empty. */
+  year?: string;
+  /** Optional short note (e.g. "migration to Vercel pending"). Renders
+   * when non-empty so we can flag in-progress status without inventing
+   * capabilities. */
+  note?: string;
+};
+
+/**
+ * Ben-approved Phase 3 project list. Order per Ben (Lever agency
+ * first, then most-mature side-build, then in-progress migration).
+ * One-liners + chips are the exact strings Ben Y'd; changing them
+ * requires another Ben Y.
+ */
+export const projects: Project[] = [
+  {
+    name: "Lever Marketing",
+    href: "https://leverco.marketing",
+    oneLiner:
+      "Fractional CMO strategy paired with custom AI agents that actually implement it.",
+    chips: ["Next.js", "AI agents", "Fractional CMO", "Strategy Sprint"],
+    year: "2026",
+  },
+  {
+    name: "hiring-agent",
+    href: "https://github.com/InocuousCabbage/hiring-agent",
+    oneLiner:
+      "Personal hiring pipeline that ingests job alerts, tailors application materials, and can auto-apply to Greenhouse roles behind a Gmail approval loop.",
+    chips: ["Python", "Playwright", "Gmail API", "Greenhouse", "Anthropic"],
+    year: "2026",
+  },
+  {
+    name: "mealprep.benjoslin.me",
+    href: "https://mealprep.benjoslin.me",
+    oneLiner:
+      "Meal-prep planner built on Lovable. Vercel migration in progress.",
+    chips: ["Lovable", "React"],
+    note: "Migration to Vercel pending",
+  },
+];
