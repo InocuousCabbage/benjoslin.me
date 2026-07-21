@@ -5,10 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /**
  * V3 signature moment: glitch-text easter egg on hover.
  *
- * Wraps a string. On mouseenter, each character briefly cycles through
- * random glyphs from GLYPH_POOL with a per-character stagger, then
- * resolves back to the original. Small surface area, hover-only, low
- * distraction.
+ * Wraps a string. On mouseenter, each ALPHANUMERIC character briefly
+ * cycles through random glyphs from GLYPH_POOL with a per-character
+ * stagger, then resolves back to the original. Non-alnum characters
+ * (spaces, punctuation, symbols like ©) stay put so the shape reads.
+ * Callers should not wrap strings that are all non-alnum (e.g. just
+ * a © prefix) since the cycle would be a runtime no-op. Small surface
+ * area, hover-only, low distraction.
  *
  * Bailouts:
  * - prefers-reduced-motion: skip the glitch entirely; render the

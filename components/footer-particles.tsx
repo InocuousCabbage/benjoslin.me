@@ -11,10 +11,10 @@ import { useEffect, useRef, useState } from "react";
  * moves each dot slowly with a small per-particle sine offset so
  * nothing feels lock-stepped.
  *
- * Cursor interactivity: when the cursor is within the canvas bounds
- * plus a small margin, dots within ~120px of the cursor push away with
- * a soft inverse-square-ish force, then relax back toward their
- * ambient drift. Feels like a small physics playground under the eye.
+ * Cursor interactivity: when the cursor is within the canvas bounds,
+ * dots within ~120px of the cursor push away with a soft
+ * inverse-linear force, then relax back toward their ambient drift.
+ * Feels like a small physics playground under the eye.
  *
  * Battery discipline:
  * - IntersectionObserver-gated: rAF only runs while the canvas is at
@@ -26,11 +26,15 @@ import { useEffect, useRef, useState } from "react";
  *   have no persistent cursor); ambient drift still plays.
  * matchMedia change listeners cover mid-session toggles.
  *
- * Pointer semantics: the canvas is pointer-events-none decoration so
- * it never intercepts clicks or blocks V3's glitch-hover on the
- * copyright line. Cursor tracking uses a window-level mousemove and
- * getBoundingClientRect on the canvas to check if the pointer is over
- * the constellation.
+ * The canvas is rendered as a sibling of the copyright block (not an
+ * overlay), so pointer semantics do not affect V3's glitch hover.
+ * pointer-events-none is kept as belt-and-suspenders in case a future
+ * layout change moves the canvas over other elements.
+ *
+ * Particles are seeded ONCE across the component's lifetime; scrolling
+ * into and out of view via the IO gate does not reshuffle the field
+ * (iter-11 F3 fix). Resize updates canvas dimensions and rescales
+ * particle positions proportionally, preserving continuity.
  */
 
 type Particle = {
@@ -67,10 +71,32 @@ function seedParticles(width: number, height: number): Particle[] {
   return particles;
 }
 
+function rescaleParticles(
+  particles: Particle[],
+  fromWidth: number,
+  fromHeight: number,
+  toWidth: number,
+  toHeight: number,
+): void {
+  if (fromWidth <= 0 || fromHeight <= 0) return;
+  const sx = toWidth / fromWidth;
+  const sy = toHeight / fromHeight;
+  for (const p of particles) {
+    p.x *= sx;
+    p.y *= sy;
+    p.baseX *= sx;
+    p.baseY *= sy;
+  }
+}
+
 export function FooterParticles() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const particlesRef = useRef<Particle[]>([]);
+  const sizeRef = useRef<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
   const cursorRef = useRef<{ x: number; y: number; active: boolean }>({
     x: -1000,
     y: -1000,
@@ -139,6 +165,39 @@ export function FooterParticles() {
     };
   }, [trackCursor]);
 
+  // One-shot seed (iter-11 F3 fix): particles are seeded exactly once
+  // per component lifetime so IO or motionOk toggles never reshuffle
+  // the field. Resize rescales existing particles proportionally
+  // instead of reseeding.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const seedNow = () => {
+      const rect = canvas.getBoundingClientRect();
+      sizeRef.current = { width: rect.width, height: rect.height };
+      particlesRef.current = seedParticles(rect.width, rect.height);
+    };
+    if (particlesRef.current.length === 0) seedNow();
+    const resizeObs = new ResizeObserver(() => {
+      const rect = canvas.getBoundingClientRect();
+      const from = sizeRef.current;
+      if (particlesRef.current.length === 0) {
+        seedNow();
+      } else if (from.width > 0 && from.height > 0) {
+        rescaleParticles(
+          particlesRef.current,
+          from.width,
+          from.height,
+          rect.width,
+          rect.height,
+        );
+        sizeRef.current = { width: rect.width, height: rect.height };
+      }
+    });
+    resizeObs.observe(canvas);
+    return () => resizeObs.disconnect();
+  }, []);
+
   // Canvas rendering loop (or single static frame for reduced-motion).
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -146,18 +205,21 @@ export function FooterParticles() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Resize handler.
-    const dpr = window.devicePixelRatio || 1;
-    const resize = () => {
+    // Sync the physical canvas size to CSS box + current DPR. Called
+    // on mount + every rAF frame so a mid-session DPR change (retina
+    // drag between displays, browser zoom) actually rescales
+    // (iter-11 F5 fix - previously the DPR was captured once at effect
+    // entry and never re-read).
+    const syncCanvasSize = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = Math.floor(rect.width * dpr);
-      canvas.height = Math.floor(rect.height * dpr);
+      const dpr = window.devicePixelRatio || 1;
+      const targetWidth = Math.floor(rect.width * dpr);
+      const targetHeight = Math.floor(rect.height * dpr);
+      if (canvas.width !== targetWidth) canvas.width = targetWidth;
+      if (canvas.height !== targetHeight) canvas.height = targetHeight;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      particlesRef.current = seedParticles(rect.width, rect.height);
     };
-    resize();
-    const resizeObs = new ResizeObserver(resize);
-    resizeObs.observe(canvas);
+    syncCanvasSize();
 
     const drawStatic = () => {
       const rect = canvas.getBoundingClientRect();
@@ -192,22 +254,21 @@ export function FooterParticles() {
     if (!motionOk) {
       // Reduced-motion path: paint one static frame + skip the loop.
       drawStatic();
-      return () => {
-        resizeObs.disconnect();
-      };
+      return;
     }
 
     if (!visible) {
       // Not scrolled in: paint the current state once so if the canvas
       // ends up in view without moving (short pages) the field is
-      // visible, but don't start the rAF loop.
+      // visible, but do not start the rAF loop.
       drawStatic();
-      return () => {
-        resizeObs.disconnect();
-      };
+      return;
     }
 
     const tick = (t: number) => {
+      // Re-sync canvas size on every frame so a mid-session DPR change
+      // actually applies without needing a resize event.
+      syncCanvasSize();
       const rect = canvas.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width, rect.height);
       const particles = particlesRef.current;
@@ -236,7 +297,7 @@ export function FooterParticles() {
         }
 
         // Spring back toward base position so drift + cursor pushes
-        // don't scatter the field permanently.
+        // do not scatter the field permanently.
         p.vx += (p.baseX - p.x) * 0.003;
         p.vy += (p.baseY - p.y) * 0.003;
         p.x += p.vx;
@@ -275,7 +336,6 @@ export function FooterParticles() {
     rafRef.current = requestAnimationFrame(tick);
 
     return () => {
-      resizeObs.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
   }, [motionOk, visible]);

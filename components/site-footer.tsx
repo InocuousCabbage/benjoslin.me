@@ -74,12 +74,15 @@ export function SiteFooter() {
         data-testid="site-footer-inner"
         className="mx-auto flex max-w-5xl flex-col items-start justify-between gap-4 px-6 py-8 text-sm text-white/60 sm:flex-row sm:items-center"
       >
-        {/* V3 glitch-text easter egg on copyright hover. GlitchText
-         * bails on prefers-reduced-motion + preserves original text in
-         * aria-label so screen readers stay quiet through the cycle. */}
+        {/* V3 glitch-text easter egg on copyright hover. Only the
+         * " All rights reserved." suffix is wrapped: the isCycled
+         * predicate inside GlitchText intentionally skips non-alnum
+         * characters (spaces, punctuation, © symbol) so glitching just
+         * "© " would be a no-op. GlitchText bails on prefers-reduced-
+         * motion + preserves original text in aria-label so screen
+         * readers stay quiet through the cycle. */}
         <p>
-          <GlitchText>{`© `}</GlitchText>
-          <CurrentYear />
+          &copy; <CurrentYear />
           <GlitchText>{` All rights reserved.`}</GlitchText>
         </p>
         <div
