@@ -14,7 +14,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/80 backdrop-blur">
       <nav
         aria-label="Primary"
-        className="mx-auto flex max-w-5xl items-center gap-4 overflow-x-auto px-6 py-4 text-sm font-medium sm:gap-6"
+        className="mx-auto flex max-w-3xl items-center gap-4 overflow-x-auto px-6 py-4 text-sm font-medium sm:gap-6"
       >
         {items.map((item) => (
           <Link

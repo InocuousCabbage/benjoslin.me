@@ -262,14 +262,18 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(currentYear).toMatch(/["']use client["']/);
   });
 
-  it("SiteFooter uses Enzo copyright pattern + icon row (LinkedIn/GitHub/Instagram)", () => {
+  it("SiteFooter uses Enzo verbatim copyright + icon row (LinkedIn/GitHub/Instagram)", () => {
     const footer = readFileSync(
       join(REPO_ROOT, "components", "site-footer.tsx"),
       "utf-8",
     );
-    // Copyright line references site.name and the year.
+    // xhigh iter-5 F22 codified: Ben chose verbatim Enzo copyright.
+    // No 'Ben Joslin' prefix in the copyright line, no site.name reference
+    // in the footer copy at all.
     expect(footer).toContain("All rights reserved");
-    expect(footer).toContain("site.name");
+    expect(footer).not.toMatch(/\{site\.name\}\s*&copy;/);
+    expect(footer).not.toMatch(/\{site\.name\}\s*©/);
+    expect(footer).not.toMatch(/Ben Joslin\s*&copy;/);
     // Inline SVG icon components for the three socials (lucide-react's
     // brand marks were removed for trademark reasons; inline SVG keeps
     // deps + hover behavior clean).
@@ -280,6 +284,19 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(footer).toContain("site.socials.linkedin");
     expect(footer).toContain("site.socials.github");
     expect(footer).toContain("site.socials.instagram");
+  });
+
+  it("SiteHeader container matches hero max-width (max-w-3xl, iter-5 F21)", () => {
+    // Ben post-preview F21: narrow nav to match hero max-w-3xl. Enzo has
+    // a mismatch (nav wider than hero); Ben chose the cleaner symmetric
+    // shape. Pin the width so a future refactor doesn't drift back to
+    // the wider max-w-5xl default.
+    const header = readFileSync(
+      join(REPO_ROOT, "components", "site-header.tsx"),
+      "utf-8",
+    );
+    expect(header).toMatch(/max-w-3xl/);
+    expect(header).not.toMatch(/max-w-5xl/);
   });
 
   it("home page uses site.name for hero and does not hard-code the name string", () => {

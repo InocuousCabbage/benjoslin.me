@@ -66,7 +66,7 @@ export function SiteFooter() {
         className="mx-auto flex max-w-5xl flex-col items-start justify-between gap-4 px-6 text-sm text-white/60 sm:flex-row sm:items-center"
       >
         <p>
-          {site.name} &copy; <CurrentYear /> All rights reserved.
+          &copy; <CurrentYear /> All rights reserved.
         </p>
         <div
           data-testid="site-footer-social-row"
