@@ -497,54 +497,49 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(ithaca.coursework).toEqual([]);
   });
 
-  it("Career page renders every role datum + conditional impact + initiatives slot", () => {
+  // The four M2-flagged shape-only pins (role.impact ternary,
+  // role.initiatives length guard, school.gradYear ternary,
+  // school.coursework length guard) moved to render-layer tests in
+  // components/{career-log,education-list}.render.test.tsx per iter-M2
+  // ironic-miss n=9 close. What remains here is the source-shape
+  // pinning that is still behavior-relevant (page uses site.name /
+  // lib/content, dark theme classes, no-headshot discipline). The
+  // conditional-render logic itself is now enforced by RTL render
+  // tests that assert DOM presence/absence under fixture variants,
+  // which passes under a valid ternary -> && refactor and fails
+  // under an always-render regression.
+  it("Career page wires CareerLog with the real career data + dark theme + no-headshot", () => {
     const p = readFileSync(join(REPO_ROOT, "app", "career", "page.tsx"), "utf-8");
     expect(p).toMatch(/from ["']@\/lib\/content["']/);
-    expect(p).toContain("career");
-    // Renders each role field via {role.title}, {role.company}, {role.dates}
-    // (dot-access shape, catches a rename or drop of any field).
-    expect(p).toMatch(/\{role\.title\}/);
-    expect(p).toMatch(/\{role\.company\}/);
-    expect(p).toMatch(/\{role\.dates\}/);
-    expect(p).toMatch(/\{phase\.label\}/);
-    // Impact conditional: only render when present. Pin the ternary
-    // shape so a refactor that always renders impact (breaking the
-    // "leave empty" contract for Ben's placeholder roles) fails.
-    expect(p).toMatch(/role\.impact\s*\?[\s\S]{0,200}:\s*null/);
-    // Initiatives conditional: only render list when non-empty.
-    expect(p).toMatch(/role\.initiatives\.length\s*>\s*0/);
-    // AT semantics: roles wrapped in <ul>/<li> (iter-8 F5 pattern).
-    expect(p).toContain("<ul");
-    expect(p).toContain("<li");
+    expect(p).toMatch(/from ["']@\/components\/career-log["']/);
+    expect(p).toMatch(/<CareerLog\s+phases=\{career\}/);
     // Dark theme + typography match Phase 0.
     expect(p).toContain("text-white");
-    expect(p).toContain("font-display");
-    // No headshot / no image in this page (matches Phase 0 no-headshot
-    // discipline; catches a future refactor that adds a profile photo).
+    // No headshot / no image in the page shell.
     expect(p).not.toMatch(/<img\b/i);
     expect(p).not.toMatch(/from ["']next\/image["']/);
+    // Iter-L1 (Ben post-preview): eyebrow-only heading matching enzo.
+    // Verbatim "Career" as the h1 with the small uppercase eyebrow
+    // classes; the previous "Career log" phrase is gone.
+    expect(p).not.toContain("Career log");
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Career\s*<\/h1>/);
   });
 
-  it("Education page renders school + degree + activities + conditional gradYear/coursework", () => {
+  it("Education page wires EducationList with the real education data + dark theme + no-headshot", () => {
     const p = readFileSync(
       join(REPO_ROOT, "app", "education", "page.tsx"),
       "utf-8",
     );
     expect(p).toMatch(/from ["']@\/lib\/content["']/);
-    expect(p).toContain("education");
-    // Renders school + degree + iterates activities via dot-access.
-    expect(p).toMatch(/\{school\.school\}/);
-    expect(p).toMatch(/\{school\.degree\}/);
-    expect(p).toMatch(/\{activity\}/);
-    // gradYear conditional: only render when defined.
-    expect(p).toMatch(/school\.gradYear\s*\?[\s\S]{0,200}:\s*null/);
-    // coursework conditional: only render section when non-empty.
-    expect(p).toMatch(/school\.coursework\.length\s*>\s*0/);
+    expect(p).toMatch(/from ["']@\/components\/education-list["']/);
+    expect(p).toMatch(/<EducationList\s+schools=\{education\}/);
     // Dark theme + typography match Phase 0.
     expect(p).toContain("text-white");
-    expect(p).toContain("font-display");
     expect(p).not.toMatch(/<img\b/i);
     expect(p).not.toMatch(/from ["']next\/image["']/);
+    // Iter-L1: eyebrow-only heading, "Where I studied" phrase gone.
+    expect(p).not.toContain("Where I studied");
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Education\s*<\/h1>/);
   });
 
   it("Home page uses HeroName inside the hero H1 (site.name still single-source)", () => {
