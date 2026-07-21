@@ -23,6 +23,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { homeCards, site } from "@/lib/site";
+import { career, education } from "@/lib/content";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -423,6 +424,106 @@ describe("visual clone (enzosison.com pattern)", () => {
     // GlitchText because '©' fails the alnum-only cycling predicate
     // (runtime no-op class). Guard against reintroduction.
     expect(f).not.toMatch(/<GlitchText>\{?[`'"][^`'"]*©/);
+  });
+
+  // Phase 2: /career + /education content wire-up. Data lives in
+  // lib/content.ts; pages render pure. Each Ben-provided datum pinned
+  // + optional-field-absent behavior pinned. Ironic-miss n=8 discipline:
+  // adversarial-verified below (not just import + shape existence).
+  it("career data (Phase 2) pins the exact ReVision + Lever roles Ben provided", () => {
+    // Two phases: ReVision (2 roles) + Lever (1 role).
+    expect(career).toHaveLength(2);
+    expect(career[0].label).toBe("ReVision Energy");
+    expect(career[0].roles).toHaveLength(2);
+    // Coordinator role.
+    expect(career[0].roles[0].title).toBe("Digital Marketing Coordinator");
+    expect(career[0].roles[0].company).toBe("ReVision Energy");
+    expect(career[0].roles[0].dates).toBe("Jan 2023 - May 2025");
+    // Analyst role.
+    expect(career[0].roles[1].title).toBe("Digital Marketing Analyst");
+    expect(career[0].roles[1].company).toBe("ReVision Energy");
+    expect(career[0].roles[1].dates).toBe("Jun 2025 - present");
+    // Lever phase.
+    expect(career[1].label).toBe("Lever Marketing");
+    expect(career[1].roles).toHaveLength(1);
+    expect(career[1].roles[0].title).toBe("Founder");
+    expect(career[1].roles[0].company).toBe("Lever Marketing");
+    expect(career[1].roles[0].dates).toBe("Apr 2026 - present");
+    // Optional-field discipline: impact absent + initiatives empty per
+    // Ben's Phase 2 answer ("leave empty, Ben backfills").
+    for (const phase of career) {
+      for (const role of phase.roles) {
+        expect(role.impact).toBeUndefined();
+        expect(role.initiatives).toEqual([]);
+      }
+    }
+  });
+
+  it("education data (Phase 2) pins Ithaca College with Ben's provided activities", () => {
+    expect(education).toHaveLength(1);
+    const [ithaca] = education;
+    expect(ithaca.school).toBe("Ithaca College");
+    expect(ithaca.degree).toBe("B.S. Business Administration");
+    // Order-independent presence check for the three activities Ben
+    // listed: Dean's List, Minor in Audio Production, Rugby team.
+    expect(ithaca.activities).toContain("Dean's List");
+    expect(ithaca.activities).toContain("Minor in Audio Production");
+    expect(ithaca.activities).toContain("Rugby team");
+    expect(ithaca.activities).toHaveLength(3);
+    // Optional-field discipline: gradYear absent + coursework empty
+    // per Ben's Phase 2 answer.
+    expect(ithaca.gradYear).toBeUndefined();
+    expect(ithaca.coursework).toEqual([]);
+  });
+
+  it("Career page renders every role datum + conditional impact + initiatives slot", () => {
+    const p = readFileSync(join(REPO_ROOT, "app", "career", "page.tsx"), "utf-8");
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toContain("career");
+    // Renders each role field via {role.title}, {role.company}, {role.dates}
+    // (dot-access shape, catches a rename or drop of any field).
+    expect(p).toMatch(/\{role\.title\}/);
+    expect(p).toMatch(/\{role\.company\}/);
+    expect(p).toMatch(/\{role\.dates\}/);
+    expect(p).toMatch(/\{phase\.label\}/);
+    // Impact conditional: only render when present. Pin the ternary
+    // shape so a refactor that always renders impact (breaking the
+    // "leave empty" contract for Ben's placeholder roles) fails.
+    expect(p).toMatch(/role\.impact\s*\?[\s\S]{0,200}:\s*null/);
+    // Initiatives conditional: only render list when non-empty.
+    expect(p).toMatch(/role\.initiatives\.length\s*>\s*0/);
+    // AT semantics: roles wrapped in <ul>/<li> (iter-8 F5 pattern).
+    expect(p).toContain("<ul");
+    expect(p).toContain("<li");
+    // Dark theme + typography match Phase 0.
+    expect(p).toContain("text-white");
+    expect(p).toContain("font-display");
+    // No headshot / no image in this page (matches Phase 0 no-headshot
+    // discipline; catches a future refactor that adds a profile photo).
+    expect(p).not.toMatch(/<img\b/i);
+    expect(p).not.toMatch(/from ["']next\/image["']/);
+  });
+
+  it("Education page renders school + degree + activities + conditional gradYear/coursework", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "app", "education", "page.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toContain("education");
+    // Renders school + degree + iterates activities via dot-access.
+    expect(p).toMatch(/\{school\.school\}/);
+    expect(p).toMatch(/\{school\.degree\}/);
+    expect(p).toMatch(/\{activity\}/);
+    // gradYear conditional: only render when defined.
+    expect(p).toMatch(/school\.gradYear\s*\?[\s\S]{0,200}:\s*null/);
+    // coursework conditional: only render section when non-empty.
+    expect(p).toMatch(/school\.coursework\.length\s*>\s*0/);
+    // Dark theme + typography match Phase 0.
+    expect(p).toContain("text-white");
+    expect(p).toContain("font-display");
+    expect(p).not.toMatch(/<img\b/i);
+    expect(p).not.toMatch(/from ["']next\/image["']/);
   });
 
   it("Home page uses HeroName inside the hero H1 (site.name still single-source)", () => {
