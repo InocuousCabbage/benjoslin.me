@@ -577,12 +577,82 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(projects[2].note).toBe("Migration to Vercel pending");
   });
 
-  // Phase 4 scaffold: photos array intentionally empty. When Ben's
-  // originals land, populate happens in a separate PR and this pin gets
-  // updated to require length > 0 + verbatim src/alt values Ben provides.
-  it("photos data (Phase 4 scaffold) is intentionally empty until Ben's originals land", () => {
+  // Phase 4 populate: photos are auto-generated into
+  // lib/photos.generated.ts by scripts/populate-photos.mjs from the KB
+  // Personal / Best photos folder (37 unique after dedup). Pin the
+  // populated invariants so a botched re-run gets caught before merge.
+  it("photos data (Phase 4 populate) is a non-empty ordered array with valid Photo shape", () => {
     expect(Array.isArray(photos)).toBe(true);
-    expect(photos.length).toBe(0);
+    // 37 = 38 source files - 1 exact-content-hash duplicate.
+    expect(photos.length).toBe(37);
+    // Every entry has the required Photo fields with sensible values.
+    for (const p of photos) {
+      expect(typeof p.src).toBe("string");
+      expect(p.src.startsWith("/photos/")).toBe(true);
+      expect(p.src.endsWith(".jpg")).toBe(true);
+      expect(typeof p.alt).toBe("string");
+      expect(p.alt.length).toBeGreaterThan(0);
+      expect(p.width).toBeGreaterThan(0);
+      expect(p.height).toBeGreaterThan(0);
+      // blurDataURL is a data URL (base64 JPEG).
+      expect(p.blurDataURL?.startsWith("data:image/jpeg;base64,")).toBe(true);
+      // srcSet exists on every populated photo (pipeline invariant).
+      expect(typeof p.srcSet).toBe("string");
+      // Every entry in srcSet must be a valid `<path> <n>w` pair (no
+      // corrupted middle tokens). Strengthened from a substring match
+      // after adv-verify #2 showed a single corrupted head entry could
+      // slip past the earlier loose regex.
+      const entries = p.srcSet!.split(", ");
+      expect(entries.length).toBeGreaterThan(0);
+      for (const entry of entries) {
+        expect(
+          entry,
+          `bad srcSet entry "${entry}" in ${p.src}`,
+        ).toMatch(/^\/photos\/[a-z0-9-]+(?:-w\d+)?\.jpg \d+w$/);
+      }
+      // Widths must be ascending so the browser picks correctly.
+      const widths = entries.map((e) =>
+        parseInt(e.split(" ")[1] as string, 10),
+      );
+      for (let i = 1; i < widths.length; i++) {
+        expect(
+          widths[i]! > widths[i - 1]!,
+          `srcSet widths not ascending for ${p.src}: ${widths.join(",")}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("photos are ordered EXIF-date-descending with undated at the end (populate script contract)", () => {
+    // Extract date fields (undefined for undated). Sort key mirrors the
+    // populate script: date || "0000-00-00", DESC. Walking the array
+    // must show monotonically non-increasing sort keys.
+    let prev = "9999-99-99";
+    for (const p of photos) {
+      const key = p.date ?? "0000-00-00";
+      expect(
+        key <= prev,
+        `out-of-order photo ${p.src}: date=${key} follows ${prev}`,
+      ).toBe(true);
+      prev = key;
+    }
+  });
+
+  it("photos have unique src paths (dedup contract holds)", () => {
+    const seen = new Set<string>();
+    for (const p of photos) {
+      expect(seen.has(p.src), `duplicate photo src ${p.src}`).toBe(false);
+      seen.add(p.src);
+    }
+    expect(seen.size).toBe(photos.length);
+  });
+
+  it("content.ts re-exports photos from the generated file (not a stale inline array)", () => {
+    const c = readFileSync(join(REPO_ROOT, "lib", "content.ts"), "utf-8");
+    expect(c).toMatch(/export\s*\{\s*photos\s*\}\s*from\s*["']@\/lib\/photos\.generated["']/);
+    // Guard against a merge conflict resurrecting the scaffold placeholder
+    // (const photos: Photo[] = [] as the last-word declaration).
+    expect(c).not.toMatch(/export\s+const\s+photos\s*:\s*Photo\[\]\s*=\s*\[\s*\]/);
   });
 
   it("Photo page wires PhotoGrid with the real photos data + dark theme + eyebrow h1", () => {
