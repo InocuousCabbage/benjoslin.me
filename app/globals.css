@@ -116,3 +116,60 @@
     font-family: var(--font-geist, var(--font-inter, "Helvetica Neue"));
   }
 }
+
+/* V1 signature moment: cursor-tracked hero shimmer. Text-clipped linear
+ * gradient with a bright peak whose position is driven by --shimmer-x.
+ * Two modes toggled via data-shimmer on the wrapping span:
+ * - idle: ambient 4.5s linear infinite keyframe animates background-
+ *   position across the text (Enzo pattern verbatim).
+ * - active: keyframe cleared; JS sets --shimmer-x -> the peak tracks
+ *   the cursor's horizontal viewport position.
+ * SSR default is idle so first paint gets the ambient shimmer with
+ * zero JS; JS hydrates + activates on mousemove (with reduced-motion
+ * + coarse-pointer bailouts). */
+@keyframes hero-shimmer-ambient {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+.hero-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0.7) 35%,
+    #ffffff 50%,
+    rgba(255, 255, 255, 0.7) 65%,
+    rgba(255, 255, 255, 0.7) 100%
+  );
+  background-size: 250% 100%;
+  background-position: var(--shimmer-x, 50%) 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  will-change: background-position;
+  backface-visibility: hidden;
+}
+
+.hero-shimmer[data-shimmer="idle"] {
+  animation: hero-shimmer-ambient 4.5s linear infinite;
+}
+
+.hero-shimmer[data-shimmer="active"] {
+  animation: none;
+}
+
+/* Prefers-reduced-motion: strip the ambient keyframe entirely so the
+ * text stays at a stable center-lit gradient. HeroName also bails on
+ * the JS cursor-track path for these users, so both modes collapse to
+ * a static bright-centered text without any motion. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-shimmer,
+  .hero-shimmer[data-shimmer="idle"],
+  .hero-shimmer[data-shimmer="active"] {
+    animation: none;
+  }
+}

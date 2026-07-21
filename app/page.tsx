@@ -1,5 +1,6 @@
 import { site, homeCards, homeFooterPhoto } from "@/lib/site";
 import { SectionBlock } from "@/components/section-block";
+import { HeroName } from "@/components/hero-name";
 
 /**
  * Home page. Full visual clone of enzosison.com per Ben's 2026-07-20 pivot,
@@ -21,8 +22,8 @@ export default function Home() {
       {/* Hero rhythm matched to enzosison.com per Ben's iter-6 feedback
        * ("sizing above and below my name should be larger"). */}
       <header className="flex min-h-[58vh] items-center py-20 md:min-h-[64vh] md:py-28">
-        <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
-          {site.name}
+        <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight sm:text-6xl">
+          <HeroName>{site.name}</HeroName>
         </h1>
       </header>
 
