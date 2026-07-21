@@ -720,12 +720,12 @@ describe("visual clone (enzosison.com pattern)", () => {
       join(REPO_ROOT, "components", "track-list.tsx"),
       "utf-8",
     );
-    // Player URL prefix must be the SoundCloud embed host, not the
-    // public share URL.
-    expect(g).toMatch(/https:\/\/w\.soundcloud\.com\/player\/\?/);
-    // The URL param is the track's soundcloudUrl; wrapped by
-    // URLSearchParams so encoding is correct.
-    expect(g).toMatch(/URLSearchParams/);
+    // Phase 5.5: URL composition moved to lib/soundcloud-widget.ts.
+    // TrackList imports embedSrc from there instead of inlining
+    // URLSearchParams; pin the import + call shape so the wiring
+    // can't drift silently.
+    expect(g).toMatch(/from ["']@\/lib\/soundcloud-widget["']/);
+    expect(g).toMatch(/embedSrc\(track\.soundcloudUrl/);
     // Fixed height 166 matches SoundCloud's default single-track embed.
     expect(g).toMatch(/height=["']166["']/);
     // Empty-state branch shape (same strengthening as Phase 4).
@@ -740,6 +740,76 @@ describe("visual clone (enzosison.com pattern)", () => {
     // Lazy loading so many-tracks page doesn't hydrate every embed
     // on first paint.
     expect(g).toMatch(/loading=["']lazy["']/);
+    // Phase 5.5: each full-size embed intercepts PLAY + hands the
+    // track off to the mini-player via useMiniPlayer().load(index).
+    // Pin the intercept binding shape so a refactor that drops
+    // coordination fails loud.
+    expect(g).toMatch(/from ["']@\/lib\/mini-player-context["']/);
+    expect(g).toMatch(/useMiniPlayer\(\)/);
+    expect(g).toMatch(/widget\.bind\(SC_EVENT\.PLAY/);
+    expect(g).toMatch(/widget\.pause\(\)/);
+    expect(g).toMatch(/load\(index\)/);
+  });
+
+  // Phase 5.5 new: lib/soundcloud-widget.ts is the shared helper
+  // module owning URL composition + SC.Widget lifecycle glue.
+  it("lib/soundcloud-widget owns embedSrc + widget lifecycle helpers", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "lib", "soundcloud-widget.ts"),
+      "utf-8",
+    );
+    expect(g).toMatch(/https:\/\/w\.soundcloud\.com\/player\/\?/);
+    expect(g).toMatch(/URLSearchParams/);
+    // visual param drives the compact-vs-waveform split.
+    expect(g).toMatch(/visual:\s*visual\s*\?\s*["']true["']\s*:\s*["']false["']/);
+    // withSCWidget polls for window.SC and returns a cleanup.
+    expect(g).toMatch(/window\.SC/);
+    expect(g).toMatch(/setInterval/);
+    // SC event constants exported so components don't hardcode strings.
+    expect(g).toMatch(/PLAY:\s*["']play["']/);
+    expect(g).toMatch(/FINISH:\s*["']finish["']/);
+  });
+
+  // Phase 5.5 new: MiniPlayer mounted at RootLayout via
+  // MiniPlayerRoot so it survives route unmount.
+  it("RootLayout wraps children in MiniPlayerRoot and loads the SC widget script", () => {
+    const layout = readFileSync(
+      join(REPO_ROOT, "app", "layout.tsx"),
+      "utf-8",
+    );
+    expect(layout).toMatch(/from ["']@\/components\/mini-player-root["']/);
+    expect(layout).toContain("<MiniPlayerRoot>");
+    // next/script loads SC widget API with lazyOnload so it doesn't
+    // block first paint on routes that don't touch music.
+    expect(layout).toMatch(/from ["']next\/script["']/);
+    expect(layout).toContain("https://w.soundcloud.com/player/api.js");
+    expect(layout).toMatch(/strategy=["']lazyOnload["']/);
+  });
+
+  it("MiniPlayer renders null when idle, fixed bottom-right, a11y-labeled controls", () => {
+    const m = readFileSync(
+      join(REPO_ROOT, "components", "mini-player.tsx"),
+      "utf-8",
+    );
+    expect(m).toMatch(/["']use client["']/);
+    // Null-return branch keeps the DOM clean before first play.
+    expect(m).toMatch(/if\s*\(\s*activeIndex\s*===\s*null\s*\)\s*return\s+null/);
+    // Fixed positioning at bottom-right.
+    expect(m).toMatch(/fixed\s+bottom-4\s+right-4/);
+    // safe-area-inset for iOS home-indicator devices.
+    expect(m).toContain("safe-area-inset-bottom");
+    // aria-label landmark.
+    expect(m).toMatch(/aria-label=["']Mini music player["']/);
+    // Every control is a real <button> with aria-label.
+    expect(m).toMatch(/aria-label=["']Previous track["']/);
+    expect(m).toMatch(/aria-label=["']Next track["']/);
+    expect(m).toMatch(/aria-label=["']Close mini player["']/);
+    // Uses embedSrc with visual=false so the compact 80px player
+    // ships, not the waveform variant.
+    expect(m).toMatch(/embedSrc\([^)]*visual:\s*false/);
+    expect(m).toMatch(/height=["']80["']/);
+    // Reduced-motion gate strips the fade-in transition.
+    expect(m).toContain("(prefers-reduced-motion: reduce)");
   });
 
   it("Photo page wires PhotoGrid with the real photos data + dark theme + eyebrow h1", () => {

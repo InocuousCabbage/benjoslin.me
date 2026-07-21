@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { GrainOverlay } from "@/components/grain-overlay";
+import { MiniPlayerRoot } from "@/components/mini-player-root";
 
 /* Inter (body) + Geist (display / heading), matching the enzosison.com
  * visual-clone directive. Both loaded via next/font so they're inlined at
@@ -58,12 +60,18 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-black text-white">
         <GrainOverlay />
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
+        <MiniPlayerRoot>
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </MiniPlayerRoot>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
+        />
+        <Script
+          src="https://w.soundcloud.com/player/api.js"
+          strategy="lazyOnload"
         />
       </body>
     </html>
