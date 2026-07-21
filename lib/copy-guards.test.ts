@@ -316,6 +316,72 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,200}\.hero-shimmer[\s\S]{0,200}animation:\s*none/);
   });
 
+  // Iter-10 V2: footer canvas constellation. IntersectionObserver-gated,
+  // reduced-motion static frame, coarse-pointer skips cursor branch.
+  it("FooterParticles (V2) is a client canvas with IO gate, matchMedia bailouts, and rAF loop", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "components", "footer-particles.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/["']use client["']/);
+    // Canvas element with pointer-events-none so V3 hover on the
+    // copyright still fires; canvas is aria-hidden decoration.
+    expect(p).toMatch(/<canvas/);
+    expect(p).toMatch(/pointer-events-none/);
+    expect(p).toMatch(/aria-hidden/);
+    // Battery gate: IntersectionObserver parks the loop when scrolled
+    // offscreen.
+    expect(p).toContain("IntersectionObserver");
+    // A11y gates + change listeners for mid-session toggles.
+    expect(p).toContain("(prefers-reduced-motion: reduce)");
+    expect(p).toContain("(hover: hover) and (pointer: fine)");
+    expect(p).toMatch(/addEventListener\(["']change["']/);
+    // rAF loop + cleanup cancel on unmount to prevent leaks when
+    // scrolling offscreen or hydrating a new page.
+    expect(p).toContain("requestAnimationFrame");
+    expect(p).toContain("cancelAnimationFrame");
+    // Reduced-motion path renders a static frame instead of the loop
+    // so the constellation still reads visually without motion.
+    expect(p).toMatch(/if\s*\(\s*!motionOk\s*\)/);
+  });
+
+  // Iter-10 V3: glitch-text easter egg on copyright hover.
+  it("GlitchText (V3) is a client wrapper with reduced-motion bail + a11y label", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "components", "glitch-text.tsx"),
+      "utf-8",
+    );
+    expect(g).toMatch(/["']use client["']/);
+    // Hover triggers the glitch cycle; leave resets.
+    expect(g).toMatch(/onMouseEnter/);
+    expect(g).toMatch(/onMouseLeave/);
+    // Reduced-motion bail: skip glitch entirely.
+    expect(g).toContain("(prefers-reduced-motion: reduce)");
+    expect(g).toMatch(/if\s*\(\s*!motionOk\s*\)/);
+    // A11y: aria-label preserves the canonical text; the cycled span
+    // stays aria-hidden so screen readers announce only the label.
+    expect(g).toMatch(/aria-label=\{original\}/);
+    expect(g).toMatch(/aria-hidden/);
+    // Cleanup: pending timeouts cancelled on unmount + on leave.
+    expect(g).toMatch(/clearTimeout/);
+  });
+
+  it("SiteFooter mounts FooterParticles + wraps copyright text in GlitchText", () => {
+    const f = readFileSync(
+      join(REPO_ROOT, "components", "site-footer.tsx"),
+      "utf-8",
+    );
+    expect(f).toMatch(/from ["']@\/components\/footer-particles["']/);
+    expect(f).toMatch(/from ["']@\/components\/glitch-text["']/);
+    expect(f).toContain("<FooterParticles");
+    expect(f).toContain("<GlitchText");
+    // The copyright text must still be present + still routed through
+    // CurrentYear (F19 codified). No hard-coded year.
+    expect(f).toContain("All rights reserved");
+    expect(f).toContain("<CurrentYear");
+    expect(f).not.toContain("new Date()");
+  });
+
   it("Home page uses HeroName inside the hero H1 (site.name still single-source)", () => {
     const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
     expect(home).toMatch(/from ["']@\/components\/hero-name["']/);
