@@ -4,6 +4,7 @@ import "./globals.css";
 import { site } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { GrainOverlay } from "@/components/grain-overlay";
 
 /* Inter (body) + Geist (display / heading), matching the enzosison.com
  * visual-clone directive. Both loaded via next/font so they're inlined at
@@ -56,6 +57,7 @@ export default function RootLayout({
       className={`${inter.variable} ${geist.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-black text-white">
+        <GrainOverlay />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
