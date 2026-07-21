@@ -137,3 +137,39 @@ export const projects: Project[] = [
     note: "Migration to Vercel pending",
   },
 ];
+
+export type Photo = {
+  /** Path under /public (e.g. "/photos/img-0001.jpg") or absolute URL.
+   * Consumed by next/image src prop. */
+  src: string;
+  /** Mandatory alt text for a11y. Extracted from EXIF Description or
+   * Ben-provided when originals land; never blank. */
+  alt: string;
+  /** Original pixel width. Required by next/image to prevent layout
+   * shift and drive srcSet variant selection. */
+  width: number;
+  /** Original pixel height. */
+  height: number;
+  /** Optional base64 blur placeholder from sharp. When present, next/image
+   * uses placeholder="blur". */
+  blurDataURL?: string;
+  /** Optional caption rendered under the photo when present. Empty
+   * strings and undefined are both treated as absent. */
+  caption?: string;
+  /** Optional ISO date (YYYY-MM-DD) extracted from EXIF DateTimeOriginal
+   * or Ben-provided. Not rendered by default; kept for future date-sort
+   * or grouping. */
+  date?: string;
+};
+
+/**
+ * Phase 4 scaffold: intentionally empty. The scaffold ships a graceful
+ * empty state so the /photo route is reachable + typography + spacing
+ * are correct before Ben's originals land. When Ben drops originals into
+ * the Knowledge Base Personal drive folder, squeege runs the sharp +
+ * mozjpeg pipeline (HEIC to JPG, srcSet widths 640/828/1200/1920, blur
+ * placeholder, EXIF date/alt extraction) and populates this array in a
+ * separate PR. See the Phase 4 dispatch note in AGENTS.md for the
+ * populate flow.
+ */
+export const photos: Photo[] = [];

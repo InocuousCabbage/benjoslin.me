@@ -23,7 +23,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { homeCards, site } from "@/lib/site";
-import { career, education, projects } from "@/lib/content";
+import { career, education, projects, photos } from "@/lib/content";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -436,10 +436,11 @@ describe("visual clone (enzosison.com pattern)", () => {
       join(REPO_ROOT, "app", "[section]", "page.tsx"),
       "utf-8",
     );
-    // DEDICATED_ROUTES set contains /career + /education + /projects.
-    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/career["']/);
-    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/education["']/);
-    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/projects["']/);
+    // DEDICATED_ROUTES set contains /career + /education + /projects + /photo.
+    expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/career["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/education["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/projects["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/photo["']/);
     // generateStaticParams filters using the exclusion set.
     expect(dyn).toMatch(/homeCards[\s\S]{0,200}\.filter\([\s\S]{0,80}DEDICATED_ROUTES\.has/);
     // cardForSegment also guards so a request that reaches the dynamic
@@ -574,6 +575,58 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(projects[0].note).toBeUndefined();
     expect(projects[1].note).toBeUndefined();
     expect(projects[2].note).toBe("Migration to Vercel pending");
+  });
+
+  // Phase 4 scaffold: photos array intentionally empty. When Ben's
+  // originals land, populate happens in a separate PR and this pin gets
+  // updated to require length > 0 + verbatim src/alt values Ben provides.
+  it("photos data (Phase 4 scaffold) is intentionally empty until Ben's originals land", () => {
+    expect(Array.isArray(photos)).toBe(true);
+    expect(photos.length).toBe(0);
+  });
+
+  it("Photo page wires PhotoGrid with the real photos data + dark theme + eyebrow h1", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "app", "photo", "page.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toMatch(/from ["']@\/components\/photo-grid["']/);
+    expect(p).toMatch(/<PhotoGrid\s+photos=\{photos\}/);
+    expect(p).toContain("text-white");
+    // Eyebrow-only heading matches Phase 2 L1 pattern (same as Career,
+    // Education, Projects).
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Photo\s*<\/h1>/);
+  });
+
+  // Phase 4 dispatch (Ben layout decision): PhotoGrid uses react-masonry-css
+  // for varying-height layout + yet-another-react-lightbox for click-to-
+  // preview. Pin the imports + reduced-motion gate so a refactor that drops
+  // either lib fails loud. a11y behavior (keyboard nav, focus trap) is
+  // library-provided; render-layer tests in photo-grid.render.test.tsx
+  // exercise the click-to-open + empty-state branches.
+  it("PhotoGrid mounts masonry + lightbox with reduced-motion gate", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "components", "photo-grid.tsx"),
+      "utf-8",
+    );
+    expect(g).toMatch(/["']use client["']/);
+    expect(g).toMatch(/from ["']react-masonry-css["']/);
+    expect(g).toMatch(/from ["']yet-another-react-lightbox["']/);
+    // Reduced-motion gate must strip the lightbox animation.
+    expect(g).toContain("(prefers-reduced-motion: reduce)");
+    expect(g).toMatch(/animation=\{reducedMotion\s*\?/);
+    // Empty-state branch must remain (server-safe placeholder before
+    // Ben's originals land). Ironic-miss guard: match the code shape
+    // (`if (photos.length === 0) {`) rather than the bare token so
+    // deleting the branch while leaving the string in a docstring
+    // comment doesn't slip. Render-layer tests in
+    // photo-grid.render.test.tsx are the primary gate; this pin is
+    // the source-shape backstop.
+    expect(g).toMatch(/if\s*\(\s*photos\.length\s*===\s*0\s*\)\s*\{/);
+    // Every tile is a <button> (not a bare <div>) so keyboard-only users
+    // can open the lightbox with Enter/Space.
+    expect(g).toMatch(/<button/);
   });
 
   it("Projects page wires ProjectList with the real projects data + dark theme + no-headshot", () => {
