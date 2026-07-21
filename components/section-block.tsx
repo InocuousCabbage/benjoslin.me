@@ -4,6 +4,17 @@ import Link from "next/link";
 import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from "react";
 
 /**
+ * Sheen div extends `-inset-y-8` = 32px above and below the parent li.
+ * Load-bearing: any change to the sheen div's inset-y utility MUST
+ * update this constant in lockstep so the cursor-y JS write lands
+ * the gradient center on the actual pointer position instead of an
+ * offset. `2rem` in the Tailwind config = 32px at the default 16px
+ * root font-size; if the site ever ships a different root, both the
+ * class and this constant need re-scaling together.
+ */
+const SHEEN_Y_OFFSET_PX = 32;
+
+/**
  * Home section block (B1 + D2 + D4 + D6 composed).
  *
  * B1: typographic block, borderless, hairline `border-t border-white/5`
@@ -70,8 +81,19 @@ export function SectionBlock({
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
           const rect = el.getBoundingClientRect();
+          // Iter-D4-fade F1 (xhigh iter-1): --cursor-y is written in
+          // the SHEEN DIV's coordinate space, not the li's. The sheen
+          // div is -inset-y-8 (32px above the li), so div-y = li-y +
+          // SHEEN_Y_OFFSET_PX. Doing the offset here (option b) beats
+          // doing it in CSS calc(): the fallback default of 50% then
+          // resolves cleanly against the div box for reduced-motion /
+          // coarse-pointer users (calc(50% + 2rem) landed the glow
+          // near the bottom edge of the card).
           el.style.setProperty("--cursor-x", `${clientX - rect.left}px`);
-          el.style.setProperty("--cursor-y", `${clientY - rect.top}px`);
+          el.style.setProperty(
+            "--cursor-y",
+            `${clientY - rect.top + SHEEN_Y_OFFSET_PX}px`,
+          );
         });
       }
     : undefined;
@@ -91,12 +113,24 @@ export function SectionBlock({
       style={style}
       className="group relative list-none border-t border-white/5 first:border-t-0"
     >
-      {/* D4 radial-gradient sheen overlay. inset-0 fills the block.
-       * Opacity ramps on hover OR keyboard focus so keyboard-only users
-       * get the same affordance mouse users get. */}
+      {/* D4 radial-gradient sheen overlay. Ben post-preview fix
+       * (iter-D4-fade): the sheen previously clipped at the li's
+       * rectangular bounds (inset-0 = same box as li), which read
+       * as a hard rectangular halo when the gradient's soft circle
+       * extended past the card edges. Fix: extend the sheen box
+       * vertically past the li (-inset-y-8 = 32px above + below),
+       * offset the gradient's cursor-y in CSS so the spotlight
+       * still centers on the actual pointer, and add blur-2xl so
+       * any remaining edge blurs softly into the surrounding
+       * black. Horizontal stays inset-x-0 because the cards fill
+       * the container width, so horizontal bleed would clip against
+       * the page's max-w-3xl gutter anyway.
+       * Opacity ramps on hover OR keyboard focus so keyboard-only
+       * users get the same affordance mouse users get.
+       */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute -inset-y-8 inset-x-0 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
         style={{
           background:
             "radial-gradient(400px circle at var(--cursor-x) var(--cursor-y), rgba(255,255,255,0.05), transparent 70%)",
