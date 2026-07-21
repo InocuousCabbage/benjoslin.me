@@ -173,3 +173,30 @@ export type Photo = {
 // scripts/populate-photos.mjs into lib/photos.generated.ts. Re-export
 // here so consumers keep importing from "@/lib/content".
 export { photos } from "@/lib/photos.generated";
+
+/**
+ * SoundCloud track. Ben's own audio productions (Ithaca College minor
+ * in Audio Production). Content type locked to SoundCloud embeds per
+ * his Phase 5 answer; if he later adds Spotify or direct-file tracks,
+ * the type can grow a kind discriminator then.
+ */
+export type Track = {
+  /** Displayed as the track heading. Never blank. */
+  title: string;
+  /** The public SoundCloud track URL (https://soundcloud.com/user/track).
+   * Wrapped by the SoundCloud player embed at render time. */
+  soundcloudUrl: string;
+  /** Optional year (YYYY) or year-month (YYYY-MM) label. Rendered as a
+   * small eyebrow when present. */
+  date?: string;
+  /** Optional short description under the title. Rendered when set. */
+  description?: string;
+};
+
+/**
+ * Phase 5 scaffold: intentionally empty. Ships a graceful empty state
+ * so /music is reachable + typography + spacing are correct before Ben
+ * provides tracks. Populate happens in a separate PR when he sends the
+ * SoundCloud URLs.
+ */
+export const tracks: Track[] = [];

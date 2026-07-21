@@ -22,6 +22,7 @@ const DEDICATED_ROUTES = new Set([
   "/education",
   "/projects",
   "/photo",
+  "/music",
 ]);
 
 export function generateStaticParams() {

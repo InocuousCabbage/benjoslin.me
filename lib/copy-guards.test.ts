@@ -23,7 +23,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { homeCards, site } from "@/lib/site";
-import { career, education, projects, photos } from "@/lib/content";
+import { career, education, projects, photos, tracks } from "@/lib/content";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -436,11 +436,12 @@ describe("visual clone (enzosison.com pattern)", () => {
       join(REPO_ROOT, "app", "[section]", "page.tsx"),
       "utf-8",
     );
-    // DEDICATED_ROUTES set contains /career + /education + /projects + /photo.
+    // DEDICATED_ROUTES set contains /career + /education + /projects + /photo + /music.
     expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/career["']/);
     expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/education["']/);
     expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/projects["']/);
     expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/photo["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES[\s\S]{0,200}["']\/music["']/);
     // generateStaticParams filters using the exclusion set.
     expect(dyn).toMatch(/homeCards[\s\S]{0,200}\.filter\([\s\S]{0,80}DEDICATED_ROUTES\.has/);
     // cardForSegment also guards so a request that reaches the dynamic
@@ -653,6 +654,59 @@ describe("visual clone (enzosison.com pattern)", () => {
     // Guard against a merge conflict resurrecting the scaffold placeholder
     // (const photos: Photo[] = [] as the last-word declaration).
     expect(c).not.toMatch(/export\s+const\s+photos\s*:\s*Photo\[\]\s*=\s*\[\s*\]/);
+  });
+
+  // Phase 5 scaffold: tracks array intentionally empty until Ben provides
+  // SoundCloud URLs. Populate PR will swap this pin to a length>0 shape
+  // check matching Phase 4's populate discipline.
+  it("tracks data (Phase 5 scaffold) is intentionally empty until Ben provides SoundCloud URLs", () => {
+    expect(Array.isArray(tracks)).toBe(true);
+    expect(tracks.length).toBe(0);
+  });
+
+  it("Music page wires TrackList with the real tracks data + dark theme + eyebrow h1 + first-person intro", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "app", "music", "page.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toMatch(/from ["']@\/components\/track-list["']/);
+    expect(p).toMatch(/<TrackList\s+tracks=\{tracks\}/);
+    expect(p).toContain("text-white");
+    // Eyebrow-only h1 matches the Phase 2 L1 pattern.
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Music\s*<\/h1>/);
+    // First-person intro exists (Ben-editable placeholder). Content
+    // is intentionally short + not pinned verbatim so Ben can rewrite
+    // during populate without invalidating this test.
+    expect(p).toMatch(/data-testid=["']music-intro["']/);
+  });
+
+  // Phase 5 dispatch (Ben SoundCloud-only decision): TrackList renders
+  // SoundCloud iframe embeds. Pin the pattern (embed URL builder,
+  // 166px height, iframe title = track title) so a refactor that
+  // drops the embed or breaks the URL wrap fails loud. Render-layer
+  // tests in track-list.render.test.tsx are the primary gate; this
+  // pin is the source-shape backstop.
+  it("TrackList composes SoundCloud embed URLs with player defaults + 166 height", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "components", "track-list.tsx"),
+      "utf-8",
+    );
+    // Player URL prefix must be the SoundCloud embed host, not the
+    // public share URL.
+    expect(g).toMatch(/https:\/\/w\.soundcloud\.com\/player\/\?/);
+    // The URL param is the track's soundcloudUrl; wrapped by
+    // URLSearchParams so encoding is correct.
+    expect(g).toMatch(/URLSearchParams/);
+    // Fixed height 166 matches SoundCloud's default single-track embed.
+    expect(g).toMatch(/height=["']166["']/);
+    // Empty-state branch shape (same strengthening as Phase 4).
+    expect(g).toMatch(/if\s*\(\s*tracks\.length\s*===\s*0\s*\)\s*\{/);
+    // iframe carries the track title for a11y.
+    expect(g).toMatch(/title=\{track\.title\}/);
+    // Lazy loading so many-tracks page doesn't hydrate every embed
+    // on first paint.
+    expect(g).toMatch(/loading=["']lazy["']/);
   });
 
   it("Photo page wires PhotoGrid with the real photos data + dark theme + eyebrow h1", () => {
