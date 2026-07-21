@@ -270,6 +270,33 @@ describe("visual clone (enzosison.com pattern)", () => {
     // shape so a future revert to per-move getBoundingClientRect + two
     // setProperty writes gets caught.
     expect(block).toMatch(/requestAnimationFrame/);
+    // Iter-D4-fade (Ben post-preview: 'don't want it to cut off at the
+    // square hard edges'). Sheen div extends past the li vertically
+    // (-inset-y-8) so the radial fade bleeds into the surrounding
+    // black instead of hard-clipping at the card corners. Cursor-y
+    // is offset in CSS calc so the spotlight still centers on pointer
+    // even though the div origin sits 32px above the li. blur-2xl
+    // softens any remaining edge into the background. Adversarially
+    // verified: removing any of the three (extension, offset, blur)
+    // fails a pin.
+    // Strengthened past bare-token match: require each class to appear
+    // INSIDE a className attribute value so a delete of the class from
+    // the JSX doesn't pass because the token survived in a docstring
+    // comment. Same F8-class ironic-miss self-catch as PR #13 iter-0
+    // (n=2 now for the shape-only-pin-passes-when-commented-out
+    // pattern; flagged to weemeemee for theta-wave codification).
+    expect(block).toMatch(/className=["'][^"']*-inset-y-8/);
+    expect(block).toMatch(/className=["'][^"']*inset-x-0/);
+    expect(block).toMatch(/className=["'][^"']*blur-2xl/);
+    // calc() lives inside a style-string, not a className. Grep the
+    // template-literal / property-string context instead.
+    expect(block).toMatch(
+      /background:[\s\S]{0,400}calc\(var\(--cursor-y\)\s*\+\s*2rem\)/,
+    );
+    // Regression guard against a revert to the old inset-0 (hard-clip)
+    // shape. The old sheen used absolute inset-0; a re-appearance
+    // there would ship the clip class again.
+    expect(block).not.toMatch(/absolute\s+inset-0\s+opacity-0[^"]*group-hover:opacity-100/);
   });
 
   // Iter-9 V1: cursor-tracked hero shimmer. Client component wraps the

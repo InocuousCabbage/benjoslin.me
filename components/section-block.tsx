@@ -91,15 +91,27 @@ export function SectionBlock({
       style={style}
       className="group relative list-none border-t border-white/5 first:border-t-0"
     >
-      {/* D4 radial-gradient sheen overlay. inset-0 fills the block.
-       * Opacity ramps on hover OR keyboard focus so keyboard-only users
-       * get the same affordance mouse users get. */}
+      {/* D4 radial-gradient sheen overlay. Ben post-preview fix
+       * (iter-D4-fade): the sheen previously clipped at the li's
+       * rectangular bounds (inset-0 = same box as li), which read
+       * as a hard rectangular halo when the gradient's soft circle
+       * extended past the card edges. Fix: extend the sheen box
+       * vertically past the li (-inset-y-8 = 32px above + below),
+       * offset the gradient's cursor-y in CSS so the spotlight
+       * still centers on the actual pointer, and add blur-2xl so
+       * any remaining edge blurs softly into the surrounding
+       * black. Horizontal stays inset-x-0 because the cards fill
+       * the container width, so horizontal bleed would clip against
+       * the page's max-w-3xl gutter anyway.
+       * Opacity ramps on hover OR keyboard focus so keyboard-only
+       * users get the same affordance mouse users get.
+       */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute -inset-y-8 inset-x-0 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
         style={{
           background:
-            "radial-gradient(400px circle at var(--cursor-x) var(--cursor-y), rgba(255,255,255,0.05), transparent 70%)",
+            "radial-gradient(400px circle at var(--cursor-x) calc(var(--cursor-y) + 2rem), rgba(255,255,255,0.05), transparent 70%)",
         }}
       />
       <Link
