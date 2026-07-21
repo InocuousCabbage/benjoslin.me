@@ -271,6 +271,60 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(block).toMatch(/requestAnimationFrame/);
   });
 
+  // Iter-9 V1: cursor-tracked hero shimmer. Client component wraps the
+  // hero name; CSS keyframe handles ambient; JS drives --shimmer-x for
+  // cursor-track mode. Regression pins codify all four moving parts:
+  // component + CSS + a11y gates + Home wire-up.
+  it("HeroName (V1) is a client component with matchMedia gates and rAF-throttled cursor tracking", () => {
+    const hero = readFileSync(
+      join(REPO_ROOT, "components", "hero-name.tsx"),
+      "utf-8",
+    );
+    expect(hero).toMatch(/["']use client["']/);
+    // Cursor tracking + a11y bailouts on both prefers-reduced-motion AND
+    // coarse-pointer devices. Both must have matchMedia change listeners
+    // for mid-session toggles.
+    expect(hero).toContain("(prefers-reduced-motion: reduce)");
+    expect(hero).toContain("(hover: hover) and (pointer: fine)");
+    expect(hero).toMatch(/addEventListener\(["']change["']/);
+    // rAF-throttled mousemove writing --shimmer-x.
+    expect(hero).toContain("requestAnimationFrame");
+    expect(hero).toContain("--shimmer-x");
+    // Idle-out timer for cursor-parked -> revert to ambient.
+    expect(hero).toMatch(/setTimeout/);
+    // SSR default of data-shimmer="idle" so first paint runs the ambient
+    // keyframe without JS. Active mode toggled by JS on cursor move.
+    expect(hero).toMatch(/data-shimmer=["']idle["']/);
+    expect(hero).toMatch(/dataset\.shimmer\s*=\s*["']active["']/);
+    expect(hero).toMatch(/dataset\.shimmer\s*=\s*["']idle["']/);
+  });
+
+  it("globals.css defines .hero-shimmer + hero-shimmer-ambient keyframe with reduced-motion bail", () => {
+    const css = readFileSync(join(REPO_ROOT, "app", "globals.css"), "utf-8");
+    // .hero-shimmer clips a linear gradient onto text.
+    expect(css).toMatch(/\.hero-shimmer\s*\{[^}]*background-clip:\s*text/);
+    expect(css).toMatch(/-webkit-background-clip:\s*text/);
+    // Background position reads --shimmer-x so JS + keyframe can both
+    // drive the bright peak.
+    expect(css).toMatch(/background-position:\s*var\(--shimmer-x/);
+    // Ambient keyframe.
+    expect(css).toContain("@keyframes hero-shimmer-ambient");
+    // Idle mode plays the ambient keyframe; active mode clears it.
+    expect(css).toMatch(/\.hero-shimmer\[data-shimmer=["']idle["']\]\s*\{\s*animation:\s*hero-shimmer-ambient/);
+    expect(css).toMatch(/\.hero-shimmer\[data-shimmer=["']active["']\]\s*\{\s*animation:\s*none/);
+    // Reduced-motion bail must strip the ambient animation.
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,200}\.hero-shimmer[\s\S]{0,200}animation:\s*none/);
+  });
+
+  it("Home page uses HeroName inside the hero H1 (site.name still single-source)", () => {
+    const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
+    expect(home).toMatch(/from ["']@\/components\/hero-name["']/);
+    expect(home).toMatch(/<HeroName>\{site\.name\}<\/HeroName>/);
+    // site.name still the single source (F4 guard reinforced).
+    expect(home).toContain("site.name");
+    expect(home).not.toMatch(/Ben\s+Joslin/);
+  });
+
   it("Home renders SectionBlocks inside a <ul> (iter-8 F5: correct AT semantics)", () => {
     // xhigh iter-7 F5: <article> inside <nav> announces "article" 5x.
     // Fix: <ul>/<li> is the correct navigation-list primitive.
