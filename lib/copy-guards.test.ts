@@ -720,12 +720,12 @@ describe("visual clone (enzosison.com pattern)", () => {
       join(REPO_ROOT, "components", "track-list.tsx"),
       "utf-8",
     );
-    // Player URL prefix must be the SoundCloud embed host, not the
-    // public share URL.
-    expect(g).toMatch(/https:\/\/w\.soundcloud\.com\/player\/\?/);
-    // The URL param is the track's soundcloudUrl; wrapped by
-    // URLSearchParams so encoding is correct.
-    expect(g).toMatch(/URLSearchParams/);
+    // Phase 5.5: URL composition moved to lib/soundcloud-widget.ts.
+    // TrackList imports embedSrc from there instead of inlining
+    // URLSearchParams; pin the import + call shape so the wiring
+    // can't drift silently.
+    expect(g).toMatch(/from ["']@\/lib\/soundcloud-widget["']/);
+    expect(g).toMatch(/embedSrc\(track\.soundcloudUrl/);
     // Fixed height 166 matches SoundCloud's default single-track embed.
     expect(g).toMatch(/height=["']166["']/);
     // Empty-state branch shape (same strengthening as Phase 4).
@@ -740,6 +740,128 @@ describe("visual clone (enzosison.com pattern)", () => {
     // Lazy loading so many-tracks page doesn't hydrate every embed
     // on first paint.
     expect(g).toMatch(/loading=["']lazy["']/);
+    // Phase 5.5: each full-size embed intercepts PLAY + hands the
+    // track off to the mini-player via useMiniPlayer().load(index).
+    // Pin the intercept binding shape so a refactor that drops
+    // coordination fails loud.
+    expect(g).toMatch(/from ["']@\/lib\/mini-player-context["']/);
+    expect(g).toMatch(/useMiniPlayer\(\)/);
+    expect(g).toMatch(/widget\.bind\(SC_EVENT\.PLAY/);
+    // F2 from xhigh iter-0: pause MUST precede load(). Ordered
+    // regex catches a swap that would ship double-audio for a frame.
+    expect(g).toMatch(/widget\.pause\(\)[\s\S]{0,120}load\(index\)/);
+    // F7 from xhigh iter-0: bind PLAY inside a READY callback so
+    // fast first-clicks aren't dropped.
+    expect(g).toMatch(/widget\.bind\(SC_EVENT\.READY[\s\S]{0,200}widget\.bind\(SC_EVENT\.PLAY/);
+  });
+
+  // Phase 5.5 new: lib/soundcloud-widget.ts is the shared helper
+  // module owning URL composition + SC.Widget lifecycle glue.
+  it("lib/soundcloud-widget owns embedSrc + widget lifecycle helpers", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "lib", "soundcloud-widget.ts"),
+      "utf-8",
+    );
+    expect(g).toMatch(/https:\/\/w\.soundcloud\.com\/player\/\?/);
+    expect(g).toMatch(/URLSearchParams/);
+    // visual param drives the compact-vs-waveform split.
+    expect(g).toMatch(/visual:\s*visual\s*\?\s*["']true["']\s*:\s*["']false["']/);
+    // withSCWidget polls for window.SC and returns a cleanup.
+    expect(g).toMatch(/window\.SC/);
+    expect(g).toMatch(/setInterval/);
+    // SC event constants exported so components don't hardcode strings.
+    expect(g).toMatch(/PLAY:\s*["']play["']/);
+    expect(g).toMatch(/FINISH:\s*["']finish["']/);
+  });
+
+  // Phase 5.5 new: MiniPlayer mounted at RootLayout via
+  // MiniPlayerRoot so it survives route unmount.
+  it("RootLayout wraps children in MiniPlayerRoot and loads the SC widget script", () => {
+    const layout = readFileSync(
+      join(REPO_ROOT, "app", "layout.tsx"),
+      "utf-8",
+    );
+    expect(layout).toMatch(/from ["']@\/components\/mini-player-root["']/);
+    expect(layout).toContain("<MiniPlayerRoot>");
+    // next/script loads SC widget API with lazyOnload so it doesn't
+    // block first paint on routes that don't touch music.
+    expect(layout).toMatch(/from ["']next\/script["']/);
+    expect(layout).toContain("https://w.soundcloud.com/player/api.js");
+    expect(layout).toMatch(/strategy=["']lazyOnload["']/);
+  });
+
+  it("MiniPlayer renders null when idle, fixed bottom-right, a11y-labeled controls", () => {
+    const m = readFileSync(
+      join(REPO_ROOT, "components", "mini-player.tsx"),
+      "utf-8",
+    );
+    expect(m).toMatch(/["']use client["']/);
+    // Pre-first-play the DOM stays clean (nothing rendered).
+    // Post-first-play, the panel stays mounted (F4 pattern) but is
+    // hidden via aria-hidden + opacity when activeIndex is null.
+    expect(m).toMatch(/if\s*\(\s*!hasMounted\s*\)\s*return\s+null/);
+    expect(m).toMatch(/aria-hidden=\{hidden\}/);
+    // Fixed positioning at bottom-right.
+    expect(m).toMatch(/fixed\s+bottom-4\s+right-4/);
+    // safe-area-inset for iOS home-indicator devices.
+    expect(m).toContain("safe-area-inset-bottom");
+    // aria-label landmark.
+    expect(m).toMatch(/aria-label=["']Mini music player["']/);
+    // Every control is a real <button> with aria-label.
+    expect(m).toMatch(/aria-label=["']Previous track["']/);
+    expect(m).toMatch(/aria-label=["']Next track["']/);
+    expect(m).toMatch(/aria-label=["']Close mini player["']/);
+    // Uses embedSrc with visual=false so the compact 80px player
+    // ships, not the waveform variant.
+    expect(m).toMatch(/embedSrc\([^)]*visual:\s*false/);
+    expect(m).toMatch(/height=["']80["']/);
+    // Reduced-motion gate strips the fade-in transition.
+    expect(m).toContain("(prefers-reduced-motion: reduce)");
+    // F3 from xhigh iter-0: FINISH must bind to next() so an album
+    // auto-advances through the tracks[] array.
+    expect(m).toMatch(/SC_EVENT\.FINISH[\s\S]{0,60}next\(\)/);
+    // F4 from xhigh iter-0: stable-iframe pattern. Track swaps go
+    // through widget.load() on a persistent widget ref, NOT through
+    // an iframe remount (which resets user-activation context and
+    // breaks Chrome/Safari autoplay policy on 2nd+ tracks).
+    expect(m).toMatch(/w\.load\(track\.soundcloudUrl/);
+    expect(m).toMatch(/auto_play:\s*true/);
+    // F7 from xhigh iter-0: bind PLAY/PAUSE/FINISH inside a READY
+    // callback so fast first-clicks aren't dropped.
+    expect(m).toMatch(/widget\.bind\(SC_EVENT\.READY[\s\S]{0,400}widget\.bind\(SC_EVENT\.PLAY/);
+    // F5 from xhigh iter-0: load-into-widget effect depends on
+    // loadNonce so same-index re-loads still trigger a widget.load()
+    // (React would otherwise skip the effect on state-equality).
+    expect(m).toMatch(/\[activeIndex,\s*loadNonce/);
+  });
+
+  // F1 from xhigh iter-0: viewport-fit=cover must be set on the
+  // Next.js viewport export so iOS Safari returns non-zero
+  // env(safe-area-inset-*) values. Without cover, the mini-player's
+  // safe-area padding ships as dead code and the panel sits under
+  // the iPhone home-indicator gesture zone.
+  it("RootLayout exports viewport with viewportFit=cover for iOS safe-area", () => {
+    const layout = readFileSync(
+      join(REPO_ROOT, "app", "layout.tsx"),
+      "utf-8",
+    );
+    // Named `viewport` export with viewportFit set to cover.
+    expect(layout).toMatch(/export\s+const\s+viewport\s*:\s*Viewport/);
+    expect(layout).toMatch(/viewportFit:\s*["']cover["']/);
+  });
+
+  // F6 from xhigh iter-0: withSCWidget must wrap the SC.Widget()
+  // call in try/catch so a mismatched-SDK-version throw doesn't
+  // hammer the console with an uncaught exception every 200ms
+  // until the 15s timeout.
+  it("withSCWidget wraps SC.Widget() in try/catch to swallow poll-time throws", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "lib", "soundcloud-widget.ts"),
+      "utf-8",
+    );
+    // The tryBind function body contains a try/catch around the
+    // Widget factory call.
+    expect(g).toMatch(/try\s*\{[\s\S]{0,120}window\.SC\.Widget\(iframe\)[\s\S]{0,120}\}\s*catch/);
   });
 
   it("Photo page wires PhotoGrid with the real photos data + dark theme + eyebrow h1", () => {

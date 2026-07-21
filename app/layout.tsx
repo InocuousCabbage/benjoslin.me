@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { GrainOverlay } from "@/components/grain-overlay";
+import { MiniPlayerRoot } from "@/components/mini-player-root";
 
 /* Inter (body) + Geist (display / heading), matching the enzosison.com
  * visual-clone directive. Both loaded via next/font so they're inlined at
@@ -21,6 +23,21 @@ const geist = Geist({
   subsets: ["latin"],
   display: "swap",
 });
+
+/**
+ * viewportFit=cover is load-bearing: the mini-player at
+ * components/mini-player.tsx uses env(safe-area-inset-bottom/right)
+ * to avoid the iPhone home-indicator gesture zone. Without cover,
+ * iOS Safari returns 0 for those env values and the padding ships
+ * as dead code (F1 from xhigh iter-0). Keep aligned with the
+ * mini-player's safe-area usage; a delete of either side re-opens
+ * the class.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(`https://${site.domain}`),
@@ -58,12 +75,18 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-black text-white">
         <GrainOverlay />
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
+        <MiniPlayerRoot>
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </MiniPlayerRoot>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
+        />
+        <Script
+          src="https://w.soundcloud.com/player/api.js"
+          strategy="lazyOnload"
         />
       </body>
     </html>
