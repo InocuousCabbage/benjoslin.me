@@ -31,6 +31,15 @@ type PersistedState = {
 type API = {
   activeIndex: number | null;
   isPlaying: boolean;
+  /**
+   * Monotonically increasing counter bumped on every load()/next()/
+   * prev(). MiniPlayer's load-into-widget effect depends on this so
+   * re-loading the SAME index (user pauses via SC widget UI, then
+   * clicks the same full-size embed) still triggers a re-load +
+   * play instead of being silently skipped by React's state-equality
+   * short-circuit (F5 from xhigh iter-0).
+   */
+  loadNonce: number;
   /** Load a track index into the player and start playing it. */
   load: (index: number) => void;
   /** Close the player: unloads audio + hides + resets state. */
@@ -54,6 +63,7 @@ export function MiniPlayerProvider({
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [loadNonce, setLoadNonce] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -94,6 +104,7 @@ export function MiniPlayerProvider({
   const load = useCallback((i: number) => {
     setActiveIndex(i);
     setIsPlaying(true);
+    setLoadNonce((n) => n + 1);
   }, []);
 
   const close = useCallback(() => {
@@ -107,6 +118,7 @@ export function MiniPlayerProvider({
       prev === null ? 0 : (prev + 1) % trackCount,
     );
     setIsPlaying(true);
+    setLoadNonce((n) => n + 1);
   }, [trackCount]);
 
   const prev = useCallback(() => {
@@ -115,6 +127,7 @@ export function MiniPlayerProvider({
       cur === null ? 0 : (cur - 1 + trackCount) % trackCount,
     );
     setIsPlaying(true);
+    setLoadNonce((n) => n + 1);
   }, [trackCount]);
 
   return (
@@ -122,6 +135,7 @@ export function MiniPlayerProvider({
       value={{
         activeIndex,
         isPlaying,
+        loadNonce,
         load,
         close,
         next,
@@ -137,6 +151,7 @@ export function MiniPlayerProvider({
 const NOOP_API: API = {
   activeIndex: null,
   isPlaying: false,
+  loadNonce: 0,
   load: () => {},
   close: () => {},
   next: () => {},

@@ -112,7 +112,7 @@ describe("MiniPlayer active state (Phase 5.5)", () => {
     expect(pos!.textContent).toBe(`3 / ${tracks.length}`);
   });
 
-  it("close button clears state so the panel unmounts", () => {
+  it("close button clears state so the panel hides (F4 pattern: iframe stays mounted, panel goes aria-hidden)", () => {
     render(
       <Controller>
         <MiniPlayer />
@@ -124,9 +124,14 @@ describe("MiniPlayer active state (Phase 5.5)", () => {
     ) as HTMLButtonElement;
     fireEvent.click(closeBtn);
     expect(harness!.activeIndex).toBeNull();
-    expect(
-      document.querySelector('[data-testid="mini-player"]'),
-    ).toBeNull();
+    // Post-F4 refactor: panel stays in DOM (iframe persists to
+    // preserve user-activation context for the next widget.load()),
+    // but goes aria-hidden + opacity-0 + pointer-events-none.
+    const panel = document.querySelector('[data-testid="mini-player"]');
+    expect(panel).not.toBeNull();
+    expect(panel!.getAttribute("aria-hidden")).toBe("true");
+    expect(panel!.className).toContain("opacity-0");
+    expect(panel!.className).toContain("pointer-events-none");
   });
 
   it("next button advances the active index (wrapping at end)", () => {

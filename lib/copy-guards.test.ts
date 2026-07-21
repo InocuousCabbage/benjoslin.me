@@ -747,8 +747,12 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(g).toMatch(/from ["']@\/lib\/mini-player-context["']/);
     expect(g).toMatch(/useMiniPlayer\(\)/);
     expect(g).toMatch(/widget\.bind\(SC_EVENT\.PLAY/);
-    expect(g).toMatch(/widget\.pause\(\)/);
-    expect(g).toMatch(/load\(index\)/);
+    // F2 from xhigh iter-0: pause MUST precede load(). Ordered
+    // regex catches a swap that would ship double-audio for a frame.
+    expect(g).toMatch(/widget\.pause\(\)[\s\S]{0,120}load\(index\)/);
+    // F7 from xhigh iter-0: bind PLAY inside a READY callback so
+    // fast first-clicks aren't dropped.
+    expect(g).toMatch(/widget\.bind\(SC_EVENT\.READY[\s\S]{0,200}widget\.bind\(SC_EVENT\.PLAY/);
   });
 
   // Phase 5.5 new: lib/soundcloud-widget.ts is the shared helper
@@ -792,8 +796,11 @@ describe("visual clone (enzosison.com pattern)", () => {
       "utf-8",
     );
     expect(m).toMatch(/["']use client["']/);
-    // Null-return branch keeps the DOM clean before first play.
-    expect(m).toMatch(/if\s*\(\s*activeIndex\s*===\s*null\s*\)\s*return\s+null/);
+    // Pre-first-play the DOM stays clean (nothing rendered).
+    // Post-first-play, the panel stays mounted (F4 pattern) but is
+    // hidden via aria-hidden + opacity when activeIndex is null.
+    expect(m).toMatch(/if\s*\(\s*!hasMounted\s*\)\s*return\s+null/);
+    expect(m).toMatch(/aria-hidden=\{hidden\}/);
     // Fixed positioning at bottom-right.
     expect(m).toMatch(/fixed\s+bottom-4\s+right-4/);
     // safe-area-inset for iOS home-indicator devices.
@@ -810,6 +817,51 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(m).toMatch(/height=["']80["']/);
     // Reduced-motion gate strips the fade-in transition.
     expect(m).toContain("(prefers-reduced-motion: reduce)");
+    // F3 from xhigh iter-0: FINISH must bind to next() so an album
+    // auto-advances through the tracks[] array.
+    expect(m).toMatch(/SC_EVENT\.FINISH[\s\S]{0,60}next\(\)/);
+    // F4 from xhigh iter-0: stable-iframe pattern. Track swaps go
+    // through widget.load() on a persistent widget ref, NOT through
+    // an iframe remount (which resets user-activation context and
+    // breaks Chrome/Safari autoplay policy on 2nd+ tracks).
+    expect(m).toMatch(/w\.load\(track\.soundcloudUrl/);
+    expect(m).toMatch(/auto_play:\s*true/);
+    // F7 from xhigh iter-0: bind PLAY/PAUSE/FINISH inside a READY
+    // callback so fast first-clicks aren't dropped.
+    expect(m).toMatch(/widget\.bind\(SC_EVENT\.READY[\s\S]{0,400}widget\.bind\(SC_EVENT\.PLAY/);
+    // F5 from xhigh iter-0: load-into-widget effect depends on
+    // loadNonce so same-index re-loads still trigger a widget.load()
+    // (React would otherwise skip the effect on state-equality).
+    expect(m).toMatch(/\[activeIndex,\s*loadNonce/);
+  });
+
+  // F1 from xhigh iter-0: viewport-fit=cover must be set on the
+  // Next.js viewport export so iOS Safari returns non-zero
+  // env(safe-area-inset-*) values. Without cover, the mini-player's
+  // safe-area padding ships as dead code and the panel sits under
+  // the iPhone home-indicator gesture zone.
+  it("RootLayout exports viewport with viewportFit=cover for iOS safe-area", () => {
+    const layout = readFileSync(
+      join(REPO_ROOT, "app", "layout.tsx"),
+      "utf-8",
+    );
+    // Named `viewport` export with viewportFit set to cover.
+    expect(layout).toMatch(/export\s+const\s+viewport\s*:\s*Viewport/);
+    expect(layout).toMatch(/viewportFit:\s*["']cover["']/);
+  });
+
+  // F6 from xhigh iter-0: withSCWidget must wrap the SC.Widget()
+  // call in try/catch so a mismatched-SDK-version throw doesn't
+  // hammer the console with an uncaught exception every 200ms
+  // until the 15s timeout.
+  it("withSCWidget wraps SC.Widget() in try/catch to swallow poll-time throws", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "lib", "soundcloud-widget.ts"),
+      "utf-8",
+    );
+    // The tryBind function body contains a try/catch around the
+    // Widget factory call.
+    expect(g).toMatch(/try\s*\{[\s\S]{0,120}window\.SC\.Widget\(iframe\)[\s\S]{0,120}\}\s*catch/);
   });
 
   it("Photo page wires PhotoGrid with the real photos data + dark theme + eyebrow h1", () => {

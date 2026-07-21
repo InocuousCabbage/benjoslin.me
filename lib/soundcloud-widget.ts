@@ -80,9 +80,17 @@ export function withSCWidget(
   const tryBind = () => {
     if (cancelled) return true;
     if (typeof window === "undefined" || !window.SC) return false;
-    const widget = window.SC.Widget(iframe);
-    callback(widget);
-    return true;
+    // F6 from xhigh iter-0: wrap SC.Widget() in try/catch so a
+    // corrupted iframe / SDK-version-mismatch throw is treated as
+    // "not ready yet, keep polling" instead of hammering the console
+    // with an uncaught exception every 200ms until timeout.
+    try {
+      const widget = window.SC.Widget(iframe);
+      callback(widget);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   if (tryBind()) return () => {};

@@ -62,13 +62,20 @@ function TrackCard({ track, index }: { track: Track; index: number }) {
 
   useEffect(() => {
     return withSCWidget(iframeRef.current, (widget) => {
-      widget.bind(SC_EVENT.PLAY, () => {
-        // Immediately pause the full-size embed and hand the track
-        // off to the mini-player. Mini-player is the source of truth
-        // for audio; this avoids double-audio when the user hits play
-        // on any card while another card (or the mini) is playing.
-        widget.pause();
-        load(index);
+      // F7 from xhigh iter-0: register PLAY handler inside READY so
+      // a fast first-click on a fresh page load doesn't miss the
+      // initial PLAY event (the widget can drop early binds fired
+      // before the SC iframe has finished handshaking).
+      widget.bind(SC_EVENT.READY, () => {
+        widget.bind(SC_EVENT.PLAY, () => {
+          // F2 from xhigh iter-0: pause BEFORE handing off, always.
+          // Swapping the order shipped double-audio for a frame
+          // (full-size + mini both playing). The following two lines
+          // are load-bearing in order; a pin in
+          // lib/copy-guards.test.ts requires pause-then-load.
+          widget.pause();
+          load(index);
+        });
       });
     });
   }, [index, load]);
