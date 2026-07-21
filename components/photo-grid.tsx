@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Masonry from "react-masonry-css";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -11,27 +10,30 @@ import type { Photo } from "@/lib/content";
  * Presentational Photo grid + click-to-lightbox. Accepts photos as a
  * prop so render-layer tests can mount fixture data. The default export
  * in app/photo/page.tsx wraps this with the real `photos` from
- * lib/content.ts.
+ * lib/content.ts (which re-exports the generated array).
+ *
+ * Rendering: native <img srcSet=... sizes=...>. The srcSet lists the
+ * pre-generated variants from scripts/populate-photos.mjs (640/828/
+ * 1200/1920 mozjpeg), so responsive delivery is a static-asset lookup
+ * and Vercel's image optimizer is not invoked. This keeps hosting cost
+ * at zero and gives predictable quality per Ben's Y on 82% mozjpeg.
  *
  * Layout per Ben's Phase 4 dispatch (mid-scaffold decision):
  * - Masonry (varying heights per aspect ratio) via react-masonry-css.
- *   Left-to-right visual flow (row-major), not CSS-columns top-to-bottom.
- * - Column counts: 3 on wide screens (>1279px), 2 on tablet/mid-desktop
- *   (640-1279px), 1 on mobile (<640px). Each tile is large enough for
- *   presence (~500px+ on the 2-col case) rather than thumbnail-sized.
+ *   breakpointCols default:3 / 1279:2 / 639:1.
  * - Click-to-lightbox via yet-another-react-lightbox. Keyboard nav
- *   (arrow keys + escape + focus trap) is built into the library.
- * - prefers-reduced-motion strips lightbox transitions.
- * - next/image with sizes attr for per-column responsive delivery;
- *   blurDataURL wired when present so tiles fade in on hydration.
+ *   (arrows + escape + focus trap) is library-provided.
+ * - prefers-reduced-motion strips lightbox animations.
+ * - blurDataURL is painted as the button's backgroundImage so tiles
+ *   show a low-frequency preview before the JPG loads; the loaded
+ *   img covers it via absolute-fill + object-cover.
+ * - Every tile is a <button> with aria-label mentioning alt so
+ *   keyboard-only users can open the lightbox with Enter/Space.
  *
  * Empty-state discipline (Phase 4 scaffold):
  * - photos.length === 0 renders a graceful "Photos coming soon"
- *   placeholder so the route is reachable + typography stable before
- *   Ben's originals land. This branch is server-safe.
- * - photos.length > 0 mounts the masonry grid + lightbox on the client.
- *
- * Dark theme + typography match Phases 0-3.
+ *   placeholder. Retained after populate so the render tests + a
+ *   future truncation guard still exercise this branch.
  */
 export function PhotoGrid({ photos }: { photos: Photo[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -74,20 +76,26 @@ export function PhotoGrid({ photos }: { photos: Photo[] }) {
               onClick={() => setOpenIndex(i)}
               aria-label={`Open ${photo.alt} in lightbox`}
               className="group relative block w-full overflow-hidden rounded-sm bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-              style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+              style={{
+                aspectRatio: `${photo.width} / ${photo.height}`,
+                backgroundImage: photo.blurDataURL
+                  ? `url("${photo.blurDataURL}")`
+                  : undefined,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
             >
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={photo.src}
-                alt={photo.alt}
-                fill
+                {...(photo.srcSet ? { srcSet: photo.srcSet } : {})}
                 sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
-                {...(photo.blurDataURL
-                  ? {
-                      placeholder: "blur" as const,
-                      blurDataURL: photo.blurDataURL,
-                    }
-                  : {})}
-                className="object-cover transition-[filter,transform] duration-300 group-hover:brightness-110 motion-safe:group-hover:-translate-y-0.5"
+                alt={photo.alt}
+                width={photo.width}
+                height={photo.height}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover transition-[filter,transform] duration-300 group-hover:brightness-110 motion-safe:group-hover:-translate-y-0.5"
               />
             </button>
             {photo.caption ? (
@@ -111,6 +119,20 @@ export function PhotoGrid({ photos }: { photos: Photo[] }) {
           width: p.width,
           height: p.height,
           description: p.caption,
+          ...(p.srcSet
+            ? {
+                srcSet: p.srcSet.split(", ").map((entry) => {
+                  const [src, w] = entry.split(" ");
+                  return {
+                    src,
+                    width: parseInt(w, 10),
+                    height: Math.round(
+                      (parseInt(w, 10) * p.height) / p.width,
+                    ),
+                  };
+                }),
+              }
+            : {}),
         }))}
         animation={reducedMotion ? { fade: 0, swipe: 0 } : undefined}
       />
