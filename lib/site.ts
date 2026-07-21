@@ -17,9 +17,10 @@ export const site = {
 } as const;
 
 /**
- * Home page section cards. Order defines the on-page order. Each card
- * links to a dedicated sub-route rendered by that route's page.tsx.
+ * Home page section blocks. Order defines the on-page order. Each block
+ * links to a dedicated sub-route rendered by app/[section]/page.tsx.
  * Order per Ben's spec: Career, Education, Projects, Photo, Music.
+ * Subtitles read as one-line teasers, not two-word category chips.
  */
 export const homeCards = [
   {
@@ -48,3 +49,20 @@ export const homeCards = [
     href: "/music",
   },
 ] as const;
+
+/**
+ * Optional lifestyle photo + caption at the bottom of the home page.
+ * Enzo's home has one; Ben's Phase 0 doesn't ship one until he provides
+ * the source photo + caption. Set to non-null to render, null to hide.
+ * The home page checks this null and renders nothing when unset so we
+ * don't ship an empty slot.
+ */
+export type HomeFooterPhoto = {
+  src: string;
+  alt: string;
+  caption: string;
+  width: number;
+  height: number;
+};
+
+export const homeFooterPhoto: HomeFooterPhoto | null = null;

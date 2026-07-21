@@ -7,10 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-roboto);
-  --font-display: var(--font-raleway);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-geist);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-heading: var(--font-raleway);
+  --font-heading: var(--font-geist);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,8 +40,6 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --color-hover-blue: var(--hover-blue);
-  --color-warm-orange: var(--warm-orange);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -51,47 +49,48 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Ben's palette, extracted from current benjoslin.me Squarespace CSS.
- * Light theme only; dark theme intentionally omitted per spec (spec locks
- * light-only, so no next-themes provider or dark tokens).
- * #f6f6f6 background, #272727 primary text, #3e3e3e secondary, #00b2ff
- * hover-blue (the Ben-loved link/CTA color), #f0523d warm-orange accent.
+/* Full visual clone of enzosison.com per Ben's pivot 2026-07-20 evening.
+ * Dark theme: pure black background, white text with opacity gradations for
+ * hierarchy (white/40, white/60, white/70, white/80 for muted). Translucent
+ * white surfaces (bg-white/5, bg-white/10) instead of hard-bordered cards.
+ * No accent color; hover pattern is white/60 -> white opacity fade.
+ * Previous Squarespace-inherited light palette + accent hex + sphere cursor
+ * + Raleway/Roboto stack are gone; kept intentionally out of the tree so
+ * nothing bleeds.
  */
 :root {
-  --background: #f6f6f6;
-  --foreground: #272727;
-  --card: #ffffff;
-  --card-foreground: #272727;
-  --popover: #ffffff;
-  --popover-foreground: #272727;
-  --primary: #272727;
-  --primary-foreground: #f6f6f6;
-  --secondary: #e7e7e7;
-  --secondary-foreground: #272727;
-  --muted: #e7e7e7;
-  --muted-foreground: #6b6b6b;
-  --accent: #e7e7e7;
-  --accent-foreground: #272727;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #dcdcdc;
-  --input: #dcdcdc;
-  --ring: #00b2ff;
-  --hover-blue: #00b2ff;
-  --warm-orange: #f0523d;
-  --chart-1: #272727;
-  --chart-2: #3e3e3e;
-  --chart-3: #6b6b6b;
-  --chart-4: #9a9a9a;
-  --chart-5: #dcdcdc;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: rgba(255, 255, 255, 0.05);
+  --card-foreground: #ffffff;
+  --popover: #0a0a0a;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: rgba(255, 255, 255, 0.1);
+  --secondary-foreground: #ffffff;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  --accent: rgba(255, 255, 255, 0.1);
+  --accent-foreground: #ffffff;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: rgba(255, 255, 255, 0.4);
+  --chart-1: #ffffff;
+  --chart-2: rgba(255, 255, 255, 0.8);
+  --chart-3: rgba(255, 255, 255, 0.6);
+  --chart-4: rgba(255, 255, 255, 0.4);
+  --chart-5: rgba(255, 255, 255, 0.2);
   --radius: 0.5rem;
-  --sidebar: #f6f6f6;
-  --sidebar-foreground: #272727;
-  --sidebar-primary: #272727;
-  --sidebar-primary-foreground: #f6f6f6;
-  --sidebar-accent: #e7e7e7;
-  --sidebar-accent-foreground: #272727;
-  --sidebar-border: #dcdcdc;
-  --sidebar-ring: #00b2ff;
+  --sidebar: #000000;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: rgba(255, 255, 255, 0.1);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: rgba(255, 255, 255, 0.4);
 }
 
 @layer base {
@@ -101,24 +100,10 @@
   body {
     @apply bg-background text-foreground;
   }
-  /* Hide the native cursor ONLY when SphereCursor is actually mounted and
-   * running. SphereCursor sets `data-sphere-cursor="active"` on <html> when
-   * it decides to render (see components/sphere-cursor.tsx). Without this
-   * scope, hybrid devices where the sphere bails (touch iPad + Magic
-   * Keyboard) would lose the cursor entirely with nothing to replace it. */
-  html[data-sphere-cursor="active"] body {
-    cursor: none;
-  }
-  html[data-sphere-cursor="active"] input,
-  html[data-sphere-cursor="active"] textarea,
-  html[data-sphere-cursor="active"] select {
-    cursor: text;
-  }
   html {
-    /* Fallback: if next/font fails to load Raleway or Roboto, fall back to
-     * platform system stacks (not Times New Roman). Explicit here rather
-     * than via @apply so the fallback chain is visible at the source. */
-    font-family: var(--font-roboto, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    /* Fallback: if next/font fails to load Inter or Geist, fall back to
+     * platform system stacks (not Times New Roman). */
+    font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
       "Helvetica Neue", Arial, sans-serif);
   }
   h1,
@@ -128,13 +113,6 @@
   h5,
   h6,
   .font-display {
-    font-family: var(--font-raleway, "Helvetica Neue", Arial, sans-serif);
-  }
-  a {
-    @apply transition-colors;
-    transition-duration: 175ms;
-  }
-  a:hover {
-    color: var(--hover-blue);
+    font-family: var(--font-geist, var(--font-inter, "Helvetica Neue"));
   }
 }

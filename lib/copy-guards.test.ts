@@ -1,16 +1,17 @@
 /**
  * Regression guards for benjoslin.me. Grep-based tests that fail loud if a
- * banned string reappears in `src/` or lands in a user-visible root markdown.
- * Adapted from the Bellamy tweak-batch v2 pattern.
+ * banned string reappears in the source tree or lands in a user-visible
+ * root markdown. Rewritten with Phase 0 visual clone in mind (dark theme,
+ * Inter+Geist fonts, typographic section links, Enzo-pattern footer).
  *
  * Ben's standing rules enforced here:
  * - No em dashes anywhere (literal U+2014). Root markdown scanned outside
  *   any explicit v1-HISTORICAL section.
- * - No AI-tell adjective class (delve, leverage, seamless, robust, meticulous,
- *   cutting-edge, utilize, furthermore, moreover, "in conclusion", "it is
- *   important to note"). Case-insensitive.
- * - No aspirational-completeness "done" phrasings (done look, done every visit,
- *   etc). Ben's Bellamy-context lesson generalized to this codebase.
+ * - No AI-tell adjective class (delve, leverage, seamless, robust,
+ *   meticulous, cutting-edge, utilize, furthermore, moreover, "in
+ *   conclusion", "it is important to note"). Case-insensitive.
+ * - No aspirational-completeness "done" phrasings (done look, done every
+ *   visit, etc). Bellamy-context lesson generalized here.
  * - No #morethanjustlawns (Bellamy holdover; keep the pattern of banning
  *   inherited-Squarespace hashtags in one place).
  *
@@ -25,10 +26,6 @@ import { homeCards, site } from "@/lib/site";
 
 const REPO_ROOT = join(__dirname, "..");
 
-/**
- * Shell-free grep. Uses spawnSync with an argv array so patterns containing
- * shell metacharacters ($, backtick, \) cannot escape the argument.
- */
 function grepScanned(pattern: string, opts?: { ignoreCase?: boolean }): string[] {
   const args = [
     "-rln",
@@ -40,7 +37,7 @@ function grepScanned(pattern: string, opts?: { ignoreCase?: boolean }): string[]
     "lib",
   ];
   const result = spawnSync("grep", args, { cwd: REPO_ROOT, encoding: "utf-8" });
-  if (result.status === 1) return []; // grep exits 1 on no match, expected.
+  if (result.status === 1) return [];
   if (result.status !== 0) {
     throw new Error(`grep failed: status=${result.status} stderr=${result.stderr}`);
   }
@@ -107,10 +104,6 @@ describe("copy-guards", () => {
     }
   });
 
-  // Broadened em-dash guard: scan ALL user-visible root markdown files
-  // (auto-discovered via readdirSync). AGENTS.md is intentionally excluded:
-  // agent-internal content, not user-visible. v1-HISTORICAL sections inside
-  // any doc are scoped out via a regex anchor.
   it("does not ship authored em dash (U+2014) in user-visible root markdown", () => {
     const rootDocs = readdirSync(REPO_ROOT).filter(
       (f) => f.endsWith(".md") && f !== "AGENTS.md",
@@ -132,16 +125,9 @@ describe("copy-guards", () => {
     expect(violations).toEqual([]);
   });
 
-  // xhigh iter-1 ironic-miss n=5 -> iter-2 F16 ironic-miss n=6 fix.
-  // The iter-1 URL-shape regex was tautological (`[^/7]` only rejected
-  // handles STARTING with 7, not containing 7; `benjoslin7` still passed).
-  // Pin the exact known-good URLs; split per social so a failure on one
-  // handle doesn't hide the state of the other two (vitest short-circuits
-  // on the first expect failure within an `it` block).
-  //
-  // Adversarially verified iter-2: temporarily rewrote all three URLs to
-  // .../benjoslin7/... and confirmed the tests fail; reverted and confirmed
-  // green.
+  // xhigh iter-2 F16 codified: pin exact URLs per social. Split per social
+  // so a single failure doesn't hide the state of the other two. Adversarial-
+  // verified (inject benjoslin7, confirm 3 tests fail, revert).
   it("site.socials.github pins to Ben's exact known handle", () => {
     expect(site.socials.github).toBe("https://github.com/benjoslin");
   });
@@ -153,63 +139,123 @@ describe("copy-guards", () => {
   });
 });
 
-describe("structural expectations", () => {
-  it("home page uses the site.name from lib/site.ts (no hard-coded 'Ben Joslin' string)", () => {
+describe("visual clone (enzosison.com pattern)", () => {
+  it("layout body uses dark theme (bg-black text-white)", () => {
+    const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
+    expect(layout).toMatch(/bg-black/);
+    expect(layout).toMatch(/text-white/);
+    // Guard against light-theme leakage from the pre-pivot Squarespace palette.
+    expect(layout).not.toMatch(/bg-\[?#f6f6f6\]?/);
+    expect(layout).not.toMatch(/#00b2ff/);
+  });
+
+  it("globals.css sets --background to black and --foreground to white", () => {
+    const css = readFileSync(join(REPO_ROOT, "app", "globals.css"), "utf-8");
+    expect(css).toMatch(/--background:\s*#000000/);
+    expect(css).toMatch(/--foreground:\s*#ffffff/);
+    // Sphere-cursor rules removed cleanly.
+    expect(css).not.toContain("cursor: none");
+    // Pre-pivot hover accent should be gone.
+    expect(css).not.toContain("#00b2ff");
+    expect(css).not.toContain("--hover-blue");
+  });
+
+  it("layout registers Inter + Geist next/font families as function calls", () => {
+    const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
+    expect(layout).toContain("Inter(");
+    expect(layout).toContain("Geist(");
+    expect(layout).toMatch(/inter\.variable/);
+    expect(layout).toMatch(/geist\.variable/);
+    // Pre-pivot fonts should be gone.
+    expect(layout).not.toContain("Raleway");
+    expect(layout).not.toContain("Roboto");
+  });
+
+  it("sphere cursor is fully removed (no component, no mount, no CSS)", () => {
+    // Component file should be gone.
+    const componentsDir = readdirSync(join(REPO_ROOT, "components"));
+    expect(componentsDir).not.toContain("sphere-cursor.tsx");
+    // Layout should not mount it.
+    const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
+    expect(layout).not.toContain("SphereCursor");
+    expect(layout).not.toContain("sphere-cursor");
+  });
+
+  it("home page renders typographic section links (Read more pattern), not shadcn Card wrappers", () => {
+    const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
+    // Read more anchor pattern present.
+    expect(home).toContain("Read more");
+    // No shadcn Card wrapping the section links.
+    expect(home).not.toMatch(/from ["']@\/components\/ui\/card["']/);
+    expect(home).not.toContain("<Card");
+  });
+
+  it("layout renders SiteHeader + SiteFooter", () => {
+    const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
+    expect(layout).toContain("<SiteHeader");
+    expect(layout).toContain("<SiteFooter");
+  });
+
+  it("SiteHeader nav includes Home + all 5 homeCards titles", () => {
+    const header = readFileSync(
+      join(REPO_ROOT, "components", "site-header.tsx"),
+      "utf-8",
+    );
+    // Reads homeCards from lib/site.ts.
+    expect(header).toContain("homeCards");
+    // Home is explicitly prepended.
+    expect(header).toMatch(/["']Home["']/);
+  });
+
+  it("SiteFooter uses Enzo copyright pattern + icon row (LinkedIn/GitHub/Instagram)", () => {
+    const footer = readFileSync(
+      join(REPO_ROOT, "components", "site-footer.tsx"),
+      "utf-8",
+    );
+    // Copyright line references site.name and the year.
+    expect(footer).toContain("All rights reserved");
+    expect(footer).toContain("site.name");
+    // Inline SVG icon components for the three socials (lucide-react's
+    // brand marks were removed for trademark reasons; inline SVG keeps
+    // deps + hover behavior clean).
+    expect(footer).toMatch(/LinkedinIcon/);
+    expect(footer).toMatch(/GithubIcon/);
+    expect(footer).toMatch(/InstagramIcon/);
+    // All three socials must be represented via the site.socials pin.
+    expect(footer).toContain("site.socials.linkedin");
+    expect(footer).toContain("site.socials.github");
+    expect(footer).toContain("site.socials.instagram");
+  });
+
+  it("home page uses site.name for hero and does not hard-code the name string", () => {
     const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
     expect(home).toContain("site.name");
-    // xhigh iter-1 F4: also guard against bare JSX text `<h1>Ben Joslin</h1>`
-    // which would sidestep the single-source-of-truth without a quoted string.
+    // xhigh iter-1 F4: bare JSX guard.
     expect(home).not.toMatch(/Ben\s+Joslin/);
   });
 
-  it("home page does not include an <img> or Next Image (no headshot per Ben spec)", () => {
+  it("home page does not include a hero image (no headshot per Ben spec)", () => {
     const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
-    expect(home).not.toMatch(/<img\b/i);
-    expect(home).not.toMatch(/from ["']next\/image["']/);
-  });
-
-  it("layout registers Raleway + Roboto next/font families (as function calls, not just imports)", () => {
-    const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
-    // xhigh iter-1 F6: assert the FUNCTION CALL, not just the import symbol,
-    // so a refactor that drops the call site but keeps the import is caught.
-    expect(layout).toContain("Raleway(");
-    expect(layout).toContain("Roboto(");
-    // Belt-and-suspenders: the CSS variable must be wired onto <html> so
-    // the font is actually applied, not just imported.
-    expect(layout).toMatch(/raleway\.variable/);
-    expect(layout).toMatch(/roboto\.variable/);
-  });
-
-  it("layout renders SphereCursor and SiteFooter", () => {
-    const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
-    expect(layout).toContain("<SphereCursor");
-    expect(layout).toContain("<SiteFooter");
+    // <img> is allowed in the optional footer-photo slot (conditional on
+    // homeFooterPhoto being non-null). That's an Enzo-pattern lifestyle
+    // photo, not a hero headshot. Guard the HERO region specifically:
+    // extract the <header>...</header> block and assert no img/Image there.
+    const heroMatch = home.match(/<header[\s\S]*?<\/header>/);
+    expect(heroMatch).not.toBeNull();
+    expect(heroMatch![0]).not.toMatch(/<img\b/i);
+    expect(heroMatch![0]).not.toMatch(/next\/image/);
   });
 
   it("layout ships schema.org Person JSON-LD (not a business type)", () => {
     const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
     expect(layout).toContain('"@type": "Person"');
-    // Ban common business schema types on the personal site.
     for (const businessType of ["LocalBusiness", "Organization", "Corporation"]) {
       expect(layout).not.toContain(`"@type": "${businessType}"`);
     }
   });
 
   it("home lists exactly the 5 spec'd section cards", () => {
-    // xhigh iter-1 F13: import homeCards directly rather than parsing source
-    // text with regex. Fails on ordering drift AND on missing/extra entries.
     const titles = homeCards.map((c) => c.title);
     expect(titles).toEqual(["Career", "Education", "Projects", "Photo", "Music"]);
-  });
-
-  it("sphere-cursor returns null when reduced-motion or coarse-pointer bails", () => {
-    // xhigh iter-1 F2 codification: assert the SOURCE has the early-return
-    // pattern (`if (!active) return null;`) so a future rewrite doesn't
-    // re-introduce the stuck-black-square regression.
-    const src = readFileSync(
-      join(REPO_ROOT, "components", "sphere-cursor.tsx"),
-      "utf-8",
-    );
-    expect(src).toMatch(/if\s*\(\s*!active\s*\)\s*return\s*null\s*;/);
   });
 });
