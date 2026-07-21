@@ -10,18 +10,28 @@ import { homeCards } from "@/lib/site";
  * homeCards. Only the segments in homeCards resolve; anything else 404s.
  */
 
-// Static-generate one page per known section so the routes still ship as
-// pre-rendered HTML at build time (matches the Phase 0 shape: 5 static
-// stubs, no dynamic runtime).
+/**
+ * Static-generate one page per still-stub section. Segments that have
+ * their own dedicated `app/<segment>/page.tsx` (currently /career and
+ * /education per Phase 2) are excluded so the build doesn't emit
+ * duplicate ComingSoon routes and so a delete of the dedicated file
+ * falls through to a 404 instead of silently reverting to a stub.
+ */
+const DEDICATED_ROUTES = new Set(["/career", "/education"]);
+
 export function generateStaticParams() {
-  return homeCards.map((c) => ({ section: c.href.replace(/^\//, "") }));
+  return homeCards
+    .filter((c) => !DEDICATED_ROUTES.has(c.href))
+    .map((c) => ({ section: c.href.replace(/^\//, "") }));
 }
 
 // Only the known segments resolve; strays 404.
 export const dynamicParams = false;
 
 function cardForSegment(segment: string) {
-  return homeCards.find((c) => c.href === `/${segment}`);
+  const href = `/${segment}`;
+  if (DEDICATED_ROUTES.has(href)) return undefined;
+  return homeCards.find((c) => c.href === href);
 }
 
 export async function generateMetadata({

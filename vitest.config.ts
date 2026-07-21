@@ -8,7 +8,17 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "node",
-    include: ["lib/**/*.test.ts", "app/**/*.test.ts", "components/**/*.test.ts"],
+    // jsdom environment covers both the render-layer tests (which need
+    // a DOM to mount into) and the source-grep / data-import pins
+    // (which don't touch the DOM but don't mind having it available).
+    // Simpler than per-file environment matching for a small suite.
+    environment: "jsdom",
+    include: [
+      "lib/**/*.test.ts",
+      "components/**/*.test.tsx",
+      "components/**/*.render.test.tsx",
+      "app/**/*.test.ts",
+      "app/**/*.test.tsx",
+    ],
   },
 });

@@ -23,6 +23,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { homeCards, site } from "@/lib/site";
+import { career, education } from "@/lib/content";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -423,6 +424,122 @@ describe("visual clone (enzosison.com pattern)", () => {
     // GlitchText because '©' fails the alnum-only cycling predicate
     // (runtime no-op class). Guard against reintroduction.
     expect(f).not.toMatch(/<GlitchText>\{?[`'"][^`'"]*©/);
+  });
+
+  it("[section] dynamic route excludes segments that have dedicated pages (Phase 2 M1)", () => {
+    // Iter-M1 codification: generateStaticParams must filter out any
+    // segment that has its own app/<segment>/page.tsx so the build
+    // doesn't emit duplicate ComingSoon routes AND so a delete of the
+    // dedicated file falls through to 404 instead of silently
+    // reverting to a stub. Pin the exclusion set + the filter shape.
+    const dyn = readFileSync(
+      join(REPO_ROOT, "app", "[section]", "page.tsx"),
+      "utf-8",
+    );
+    // DEDICATED_ROUTES set contains /career + /education.
+    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/career["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/education["']/);
+    // generateStaticParams filters using the exclusion set.
+    expect(dyn).toMatch(/homeCards[\s\S]{0,200}\.filter\([\s\S]{0,80}DEDICATED_ROUTES\.has/);
+    // cardForSegment also guards so a request that reaches the dynamic
+    // route for a dedicated slug returns undefined (which triggers
+    // notFound()) rather than serving the stub.
+    expect(dyn).toMatch(/DEDICATED_ROUTES\.has\(href\)/);
+  });
+
+  // Phase 2: /career + /education content wire-up. Data lives in
+  // lib/content.ts; pages render pure. Each Ben-provided datum pinned
+  // + optional-field-absent behavior pinned. Ironic-miss n=8 discipline:
+  // adversarial-verified below (not just import + shape existence).
+  it("career data (Phase 2) pins the exact ReVision + Lever roles Ben provided", () => {
+    // Two phases: ReVision (2 roles) + Lever (1 role).
+    expect(career).toHaveLength(2);
+    expect(career[0].label).toBe("ReVision Energy");
+    expect(career[0].roles).toHaveLength(2);
+    // Coordinator role.
+    expect(career[0].roles[0].title).toBe("Digital Marketing Coordinator");
+    expect(career[0].roles[0].company).toBe("ReVision Energy");
+    expect(career[0].roles[0].dates).toBe("Jan 2023 - May 2025");
+    // Analyst role.
+    expect(career[0].roles[1].title).toBe("Digital Marketing Analyst");
+    expect(career[0].roles[1].company).toBe("ReVision Energy");
+    expect(career[0].roles[1].dates).toBe("Jun 2025 - present");
+    // Lever phase.
+    expect(career[1].label).toBe("Lever Marketing");
+    expect(career[1].roles).toHaveLength(1);
+    expect(career[1].roles[0].title).toBe("Founder");
+    expect(career[1].roles[0].company).toBe("Lever Marketing");
+    expect(career[1].roles[0].dates).toBe("Apr 2026 - present");
+    // Optional-field discipline: impact absent + initiatives empty per
+    // Ben's Phase 2 answer ("leave empty, Ben backfills").
+    for (const phase of career) {
+      for (const role of phase.roles) {
+        expect(role.impact).toBeUndefined();
+        expect(role.initiatives).toEqual([]);
+      }
+    }
+  });
+
+  it("education data (Phase 2) pins Ithaca College with Ben's provided activities", () => {
+    expect(education).toHaveLength(1);
+    const [ithaca] = education;
+    expect(ithaca.school).toBe("Ithaca College");
+    expect(ithaca.degree).toBe("B.S. Business Administration");
+    // Order-independent presence check for the three activities Ben
+    // listed: Dean's List, Minor in Audio Production, Rugby team.
+    expect(ithaca.activities).toContain("Dean's List");
+    expect(ithaca.activities).toContain("Minor in Audio Production");
+    expect(ithaca.activities).toContain("Rugby team");
+    expect(ithaca.activities).toHaveLength(3);
+    // Optional-field discipline: gradYear absent + coursework empty
+    // per Ben's Phase 2 answer.
+    expect(ithaca.gradYear).toBeUndefined();
+    expect(ithaca.coursework).toEqual([]);
+  });
+
+  // The four M2-flagged shape-only pins (role.impact ternary,
+  // role.initiatives length guard, school.gradYear ternary,
+  // school.coursework length guard) moved to render-layer tests in
+  // components/{career-log,education-list}.render.test.tsx per iter-M2
+  // ironic-miss n=9 close. What remains here is the source-shape
+  // pinning that is still behavior-relevant (page uses site.name /
+  // lib/content, dark theme classes, no-headshot discipline). The
+  // conditional-render logic itself is now enforced by RTL render
+  // tests that assert DOM presence/absence under fixture variants,
+  // which passes under a valid ternary -> && refactor and fails
+  // under an always-render regression.
+  it("Career page wires CareerLog with the real career data + dark theme + no-headshot", () => {
+    const p = readFileSync(join(REPO_ROOT, "app", "career", "page.tsx"), "utf-8");
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toMatch(/from ["']@\/components\/career-log["']/);
+    expect(p).toMatch(/<CareerLog\s+phases=\{career\}/);
+    // Dark theme + typography match Phase 0.
+    expect(p).toContain("text-white");
+    // No headshot / no image in the page shell.
+    expect(p).not.toMatch(/<img\b/i);
+    expect(p).not.toMatch(/from ["']next\/image["']/);
+    // Iter-L1 (Ben post-preview): eyebrow-only heading matching enzo.
+    // Verbatim "Career" as the h1 with the small uppercase eyebrow
+    // classes; the previous "Career log" phrase is gone.
+    expect(p).not.toContain("Career log");
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Career\s*<\/h1>/);
+  });
+
+  it("Education page wires EducationList with the real education data + dark theme + no-headshot", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "app", "education", "page.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/from ["']@\/lib\/content["']/);
+    expect(p).toMatch(/from ["']@\/components\/education-list["']/);
+    expect(p).toMatch(/<EducationList\s+schools=\{education\}/);
+    // Dark theme + typography match Phase 0.
+    expect(p).toContain("text-white");
+    expect(p).not.toMatch(/<img\b/i);
+    expect(p).not.toMatch(/from ["']next\/image["']/);
+    // Iter-L1: eyebrow-only heading, "Where I studied" phrase gone.
+    expect(p).not.toContain("Where I studied");
+    expect(p).toMatch(/<h1[^>]*uppercase[^>]*>\s*Education\s*<\/h1>/);
   });
 
   it("Home page uses HeroName inside the hero H1 (site.name still single-source)", () => {

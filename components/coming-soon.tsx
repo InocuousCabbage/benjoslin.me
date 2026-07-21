@@ -1,8 +1,10 @@
 import Link from "next/link";
 
 /**
- * Placeholder for Phase-0 route stubs (/career, /education, /projects,
- * /photo, /music). Dark-themed to match the enzosison visual clone.
+ * Placeholder for still-stub route pages (currently /projects, /photo,
+ * /music). Dark-themed to match the enzosison visual clone. /career
+ * and /education graduated to dedicated pages in Phase 2 and no longer
+ * use this component.
  */
 export function ComingSoon({ title }: { title: string }) {
   return (
