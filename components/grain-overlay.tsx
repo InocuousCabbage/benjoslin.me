@@ -24,7 +24,12 @@ export function GrainOverlay() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-50 opacity-[0.035] mix-blend-overlay"
+      // mix-blend-mode: overlay maps to 2 * src * dest when dest == black,
+      // which zeroes out the grain over the site's bg-black. Using screen
+      // instead adds the white noise on top of black (result = src + dest -
+      // src*dest, so black + light-white = light-white) and composes cleanly
+      // over any future non-black surfaces. iter-7 F1 fix.
+      className="pointer-events-none fixed inset-0 z-50 opacity-[0.035] mix-blend-screen"
       style={{
         backgroundImage: `url("${NOISE_SVG}")`,
         backgroundSize: "200px 200px",

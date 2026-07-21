@@ -223,6 +223,8 @@ describe("visual clone (enzosison.com pattern)", () => {
 
   // Iter-7 (B1 + D2 + D4 + D5 + D6) regression pins. Each addition has a
   // dedicated pin so a refactor can't quietly collapse one of the five.
+  // Iter-8 codifies F2/F3/F4/F6 gaps found by xhigh iter-7 (opacity gate,
+  // 50% centered fallback, focus-within mirror, first:border-t-0).
   it("SectionBlock composes B1+D2+D4+D6 (hairline divider, numbered prefix, radial sheen, kinetic arrow)", () => {
     const block = readFileSync(
       join(REPO_ROOT, "components", "section-block.tsx"),
@@ -230,8 +232,9 @@ describe("visual clone (enzosison.com pattern)", () => {
     );
     // Client component (state + useEffect for matchMedia).
     expect(block).toMatch(/["']use client["']/);
-    // B1: hairline top divider on each block.
+    // B1: hairline divider between blocks (first:border-t-0 skips leading).
     expect(block).toMatch(/border-t\s+border-white\/5/);
+    expect(block).toMatch(/first:border-t-0/);
     // D2: 01/02/03 numbered prefix via zero-padded index.
     expect(block).toMatch(/padStart\(2,\s*["']0["']\)/);
     // D4: radial-gradient with cursor-x/cursor-y CSS variables.
@@ -241,9 +244,45 @@ describe("visual clone (enzosison.com pattern)", () => {
     // D4 a11y: reduced-motion + coarse-pointer matchMedia gates cursor-track.
     expect(block).toContain("(prefers-reduced-motion: reduce)");
     expect(block).toContain("(hover: hover) and (pointer: fine)");
-    // D6: kinetic arrow micro (translate + underline sweep on group-hover).
+    // Iter-8 F2 fix: opacity gate on the sheen overlay must include
+    // opacity-0 default AND group-hover:opacity-100 AND focus-within
+    // mirror. Adversarially verified: removing group-hover:opacity-100
+    // and leaving opacity-100 (permanent sheen) previously slipped.
+    expect(block).toMatch(/opacity-0[^"]*group-hover:opacity-100/);
+    // Iter-8 F3 fix: centered-fallback defaults for --cursor-x/y must be
+    // 50%. Adversarially verified: changing to "0px" clips the gradient
+    // to the top-left corner for reduced-motion users.
+    expect(block).toMatch(/["']--cursor-x["']\s+as\s+string\]:\s*["']50%["']/);
+    expect(block).toMatch(/["']--cursor-y["']\s+as\s+string\]:\s*["']50%["']/);
+    // Iter-8 F4 fix: every group-hover:* interaction has a
+    // group-focus-within:* counterpart so keyboard-only users get the
+    // same affordances. Assert focus-within mirrors for the three D6
+    // motion classes + D4 opacity gate.
+    expect(block).toMatch(/group-focus-within:opacity-100/);
+    expect(block).toMatch(/group-focus-within:scale-x-100/);
+    expect(block).toMatch(/group-focus-within:translate-x-1/);
+    // D6 hover counterparts still present (regression guard against
+    // dropping mouse affordance while adding focus).
     expect(block).toMatch(/group-hover:translate-x-1/);
     expect(block).toMatch(/group-hover:scale-x-100/);
+    // Iter-8 F7 fix: onMouseMove is rAF-throttled. Guard on the pattern
+    // shape so a future revert to per-move getBoundingClientRect + two
+    // setProperty writes gets caught.
+    expect(block).toMatch(/requestAnimationFrame/);
+  });
+
+  it("Home renders SectionBlocks inside a <ul> (iter-8 F5: correct AT semantics)", () => {
+    // xhigh iter-7 F5: <article> inside <nav> announces "article" 5x.
+    // Fix: <ul>/<li> is the correct navigation-list primitive.
+    const home = readFileSync(join(REPO_ROOT, "app", "page.tsx"), "utf-8");
+    expect(home).toContain("<ul");
+    const block = readFileSync(
+      join(REPO_ROOT, "components", "section-block.tsx"),
+      "utf-8",
+    );
+    expect(block).toContain("<li");
+    // Guard against <article> reintroduction (the class F5 codified).
+    expect(block).not.toMatch(/<article\b/);
   });
 
   it("GrainOverlay (D5) exists as a fixed low-opacity noise layer and mounts in root layout", () => {
@@ -259,6 +298,12 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(grain).toMatch(/opacity-\[0\.0\d{1,2}\]/);
     // Inline SVG turbulence noise, no external asset dep.
     expect(grain).toContain("feTurbulence");
+    // Iter-8 F1 fix: mix-blend-mode must not be `overlay` because
+    // overlay(black, white) = black — the whole feature ships invisible
+    // on the site's bg-black. Pin to `mix-blend-screen` (adds white noise
+    // on top of black; composes cleanly over non-black surfaces too).
+    expect(grain).toContain("mix-blend-screen");
+    expect(grain).not.toContain("mix-blend-overlay");
     // Mounted in root layout above content.
     const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf-8");
     expect(layout).toContain("<GrainOverlay");

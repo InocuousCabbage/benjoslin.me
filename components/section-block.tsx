@@ -7,13 +7,20 @@ import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from
  * Home section block (B1 + D2 + D4 + D6 composed).
  *
  * B1: typographic block, borderless, hairline `border-t border-white/5`
- * across the top, no shadcn Card wrapper.
+ * between blocks (first:border-t-0 skips the leading divider so the hero
+ * isn't double-underlined). No shadcn Card wrapper.
  * D2: 01/02/03/04/05 muted display prefix at left.
  * D4 (interpretation b per weemeemee): soft radial gradient inside the
- * block anchored to cursor position, revealed on group-hover. Falls back
- * to a centered gradient (no cursor-track) on prefers-reduced-motion or
- * coarse-pointer devices.
- * D6: kinetic arrow micro on the "Read more" affordance.
+ * block anchored to cursor position, revealed on group-hover/group-focus-
+ * within. Falls back to a centered gradient (--cursor-x: 50% / --cursor-y:
+ * 50% defaults) on prefers-reduced-motion or coarse-pointer devices. Move
+ * handler is rAF-throttled to one style write per frame.
+ * D6: kinetic arrow micro on the "Read more" affordance. Fires on hover AND
+ * keyboard focus so keyboard-only users get the same affordance.
+ *
+ * Rendered as an <li> inside the parent <ul> for correct AT semantics
+ * (an earlier iteration used the article element, which announces
+ * sub-optimally when nested inside the sections nav).
  */
 export function SectionBlock({
   index,
@@ -26,7 +33,8 @@ export function SectionBlock({
   subtitle: string;
   href: string;
 }) {
-  const ref = useRef<HTMLElement | null>(null);
+  const ref = useRef<HTMLLIElement | null>(null);
+  const rafRef = useRef<number | null>(null);
   const [trackCursor, setTrackCursor] = useState(false);
 
   useEffect(() => {
@@ -43,13 +51,28 @@ export function SectionBlock({
     };
   }, []);
 
+  // Cancel any pending rAF on unmount so we don't leak the closure.
+  useEffect(() => {
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
   const onMove = trackCursor
-    ? (e: MouseEvent<HTMLElement>) => {
+    ? (e: MouseEvent<HTMLLIElement>) => {
         const el = ref.current;
         if (!el) return;
-        const rect = el.getBoundingClientRect();
-        el.style.setProperty("--cursor-x", `${e.clientX - rect.left}px`);
-        el.style.setProperty("--cursor-y", `${e.clientY - rect.top}px`);
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+        // Batch getBoundingClientRect + two setProperty writes into a
+        // single rAF per frame. Same-class F7 codification.
+        if (rafRef.current != null) return;
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+          const rect = el.getBoundingClientRect();
+          el.style.setProperty("--cursor-x", `${clientX - rect.left}px`);
+          el.style.setProperty("--cursor-y", `${clientY - rect.top}px`);
+        });
       }
     : undefined;
 
@@ -62,16 +85,18 @@ export function SectionBlock({
   };
 
   return (
-    <article
+    <li
       ref={ref}
       onMouseMove={onMove}
       style={style}
-      className="group relative border-t border-white/5"
+      className="group relative list-none border-t border-white/5 first:border-t-0"
     >
-      {/* D4 radial-gradient sheen overlay. inset-0 fills the block. */}
+      {/* D4 radial-gradient sheen overlay. inset-0 fills the block.
+       * Opacity ramps on hover OR keyboard focus so keyboard-only users
+       * get the same affordance mouse users get. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
         style={{
           background:
             "radial-gradient(400px circle at var(--cursor-x) var(--cursor-y), rgba(255,255,255,0.05), transparent 70%)",
@@ -88,29 +113,32 @@ export function SectionBlock({
           {String(index + 1).padStart(2, "0")}
         </span>
         <div>
-          <h2 className="font-display text-2xl font-semibold leading-tight tracking-tight text-white transition-opacity group-hover:opacity-95 sm:text-3xl">
+          <h2 className="font-display text-2xl font-semibold leading-tight tracking-tight text-white transition-opacity group-hover:opacity-95 group-focus-within:opacity-95 sm:text-3xl">
             {title}
           </h2>
-          <p className="mt-2 text-sm text-white/60 group-hover:text-white/80 sm:text-base">
+          <p className="mt-2 text-sm text-white/60 group-hover:text-white/80 group-focus-within:text-white/80 sm:text-base">
             {subtitle}
           </p>
         </div>
         {/* D6 kinetic arrow micro. "Read more" underline reveals on hover
-         * via a pseudo-underline that scales from left; arrow character
-         * translates right. */}
+         * OR focus; arrow character translates right on hover OR focus.
+         * Focus-within mirroring keeps keyboard nav parity with mouse. */}
         <p className="hidden shrink-0 items-center gap-2 text-sm text-white/60 sm:flex">
           <span className="relative">
             Read more
             <span
               aria-hidden
-              className="absolute bottom-0 left-0 h-px w-full origin-left scale-x-0 bg-white transition-transform duration-300 group-hover:scale-x-100"
+              className="absolute bottom-0 left-0 h-px w-full origin-left scale-x-0 bg-white transition-transform duration-300 group-hover:scale-x-100 group-focus-within:scale-x-100"
             />
           </span>
-          <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
+          <span
+            aria-hidden
+            className="transition-transform duration-300 group-hover:translate-x-1 group-focus-within:translate-x-1"
+          >
             &rarr;
           </span>
         </p>
       </Link>
-    </article>
+    </li>
   );
 }

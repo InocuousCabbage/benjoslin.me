@@ -26,16 +26,18 @@ export default function Home() {
         </h1>
       </header>
 
-      <nav aria-label="Sections" className="flex flex-col pb-24 sm:pb-32">
-        {homeCards.map((card, i) => (
-          <SectionBlock
-            key={card.href}
-            index={i}
-            title={card.title}
-            subtitle={card.subtitle}
-            href={card.href}
-          />
-        ))}
+      <nav aria-label="Sections" className="pb-24 sm:pb-32">
+        <ul className="flex flex-col">
+          {homeCards.map((card, i) => (
+            <SectionBlock
+              key={card.href}
+              index={i}
+              title={card.title}
+              subtitle={card.subtitle}
+              href={card.href}
+            />
+          ))}
+        </ul>
       </nav>
 
       {homeFooterPhoto ? (
