@@ -15,14 +15,19 @@ import { site, homeCards, homeFooterPhoto } from "@/lib/site";
  */
 export default function Home() {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16 sm:py-24">
-      <header className="mb-20 sm:mb-24">
+    <div className="mx-auto max-w-3xl px-6">
+      {/* Hero rhythm matched to enzosison.com per Ben's iter-6 feedback
+       * ("sizing above and below my name should be larger"): viewport-
+       * anchored min-height with vertical centering plus generous py- so
+       * the name breathes on any viewport. Enzo compiled CSS:
+       * min-h-[58vh] md:min-h-[64vh] py-20 md:py-28 items-center. */}
+      <header className="flex min-h-[58vh] items-center py-20 md:min-h-[64vh] md:py-28">
         <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
           {site.name}
         </h1>
       </header>
 
-      <nav aria-label="Sections" className="flex flex-col gap-10 sm:gap-12">
+      <nav aria-label="Sections" className="flex flex-col gap-10 pb-24 sm:gap-12 sm:pb-32">
         {homeCards.map((card) => (
           <Link
             key={card.href}
