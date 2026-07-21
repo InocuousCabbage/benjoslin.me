@@ -1,65 +1,65 @@
-import Image from "next/image";
+import Link from "next/link";
+import { site, homeCards, homeFooterPhoto } from "@/lib/site";
 
+/**
+ * Home page. Full visual clone of enzosison.com per Ben's 2026-07-20 pivot.
+ *
+ * Layout:
+ * - Sparse hero: just the site name (no headshot, no tagline).
+ * - 5 typographic section blocks (Career, Education, Projects, Photo,
+ *   Music). Each = H2 + one-line teaser + "Read more" arrow. NOT shadcn
+ *   Cards; matches Enzo's typographic-link pattern.
+ * - Optional lifestyle photo + caption at the bottom (Enzo has "Surfing at
+ *   Shell Beach" there). Renders NOTHING if homeFooterPhoto is null so
+ *   Phase 0 doesn't ship an empty slot; Ben backfills in a later phase.
+ */
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="mx-auto max-w-3xl px-6 py-16 sm:py-24">
+      <header className="mb-20 sm:mb-24">
+        <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
+          {site.name}
+        </h1>
+      </header>
+
+      <nav aria-label="Sections" className="flex flex-col gap-10 sm:gap-12">
+        {homeCards.map((card) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            className="group flex items-start justify-between gap-6"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            <div>
+              <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight text-white transition-opacity group-hover:opacity-90 sm:text-4xl">
+                {card.title}
+              </h2>
+              <p className="mt-2 text-base text-white/60 group-hover:text-white/80 sm:text-lg">
+                {card.subtitle}
+              </p>
+              <p className="mt-3 flex items-center gap-2 text-sm text-white/60 group-hover:text-white">
+                Read more
+                <span aria-hidden className="transition-transform group-hover:translate-x-1">
+                  &rarr;
+                </span>
+              </p>
+            </div>
+          </Link>
+        ))}
+      </nav>
+
+      {homeFooterPhoto ? (
+        <section className="mt-24 border-t border-white/10 pt-10 sm:mt-32">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={homeFooterPhoto.src}
+            alt={homeFooterPhoto.alt}
+            width={homeFooterPhoto.width}
+            height={homeFooterPhoto.height}
+            className="w-full max-w-md rounded-md"
+          />
+          <p className="mt-3 text-sm text-white/60">{homeFooterPhoto.caption}</p>
+        </section>
+      ) : null}
     </div>
   );
 }
