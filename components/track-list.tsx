@@ -70,9 +70,11 @@ export function TrackList({ tracks }: { tracks: Track[] }) {
                 {track.date}
               </p>
             ) : null}
-            <h2 className="font-display text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
-              {track.title}
-            </h2>
+            {track.title ? (
+              <h2 className="font-display text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+                {track.title}
+              </h2>
+            ) : null}
             {track.description ? (
               <p
                 data-testid="track-description"
@@ -87,7 +89,7 @@ export function TrackList({ tracks }: { tracks: Track[] }) {
             >
               <iframe
                 src={embedSrc(track.soundcloudUrl)}
-                title={track.title}
+                title={track.title ?? "SoundCloud player"}
                 width="100%"
                 height="166"
                 scrolling="no"
