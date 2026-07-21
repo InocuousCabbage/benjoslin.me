@@ -426,6 +426,27 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(f).not.toMatch(/<GlitchText>\{?[`'"][^`'"]*©/);
   });
 
+  it("[section] dynamic route excludes segments that have dedicated pages (Phase 2 M1)", () => {
+    // Iter-M1 codification: generateStaticParams must filter out any
+    // segment that has its own app/<segment>/page.tsx so the build
+    // doesn't emit duplicate ComingSoon routes AND so a delete of the
+    // dedicated file falls through to 404 instead of silently
+    // reverting to a stub. Pin the exclusion set + the filter shape.
+    const dyn = readFileSync(
+      join(REPO_ROOT, "app", "[section]", "page.tsx"),
+      "utf-8",
+    );
+    // DEDICATED_ROUTES set contains /career + /education.
+    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/career["']/);
+    expect(dyn).toMatch(/DEDICATED_ROUTES\s*=\s*new Set\(\[[^\]]*["']\/education["']/);
+    // generateStaticParams filters using the exclusion set.
+    expect(dyn).toMatch(/homeCards[\s\S]{0,200}\.filter\([\s\S]{0,80}DEDICATED_ROUTES\.has/);
+    // cardForSegment also guards so a request that reaches the dynamic
+    // route for a dedicated slug returns undefined (which triggers
+    // notFound()) rather than serving the stub.
+    expect(dyn).toMatch(/DEDICATED_ROUTES\.has\(href\)/);
+  });
+
   // Phase 2: /career + /education content wire-up. Data lives in
   // lib/content.ts; pages render pure. Each Ben-provided datum pinned
   // + optional-field-absent behavior pinned. Ironic-miss n=8 discipline:
