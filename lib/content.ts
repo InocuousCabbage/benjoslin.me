@@ -181,10 +181,15 @@ export { photos } from "@/lib/photos.generated";
  * the type can grow a kind discriminator then.
  */
 export type Track = {
-  /** Displayed as the track heading. Never blank. */
-  title: string;
+  /** Optional title override. When absent, the SoundCloud embed renders
+   * the track name inside the iframe (widget default) and no h2 is
+   * emitted above it. Set only when you want to override SoundCloud's
+   * own metadata (e.g. cleaner display name than the slug). */
+  title?: string;
   /** The public SoundCloud track URL (https://soundcloud.com/user/track).
-   * Wrapped by the SoundCloud player embed at render time. */
+   * Wrapped by the SoundCloud player embed at render time. Strip any
+   * `?si=...` tracking params before adding here; they aren't needed
+   * by the widget URL. */
   soundcloudUrl: string;
   /** Optional year (YYYY) or year-month (YYYY-MM) label. Rendered as a
    * small eyebrow when present. */
@@ -194,9 +199,19 @@ export type Track = {
 };
 
 /**
- * Phase 5 scaffold: intentionally empty. Ships a graceful empty state
- * so /music is reachable + typography + spacing are correct before Ben
- * provides tracks. Populate happens in a separate PR when he sends the
- * SoundCloud URLs.
+ * Phase 5 populate: Ben's 10 SoundCloud tracks, order as-sent. No
+ * per-track title / date / description overrides; SoundCloud's widget
+ * renders each track's own metadata inside the iframe.
  */
-export const tracks: Track[] = [];
+export const tracks: Track[] = [
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/i_aint_even_jewelzformaster-6" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/0223a1" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/0123a1" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/0323a" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/i-never-want-this-to-end" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/hedonism" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/mving_in_slowmotionm4a" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/shwmeluv" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/sadsaturday-ft-andrew-brown" },
+  { soundcloudUrl: "https://soundcloud.com/ben_joslin/right-now-right-now" },
+];

@@ -68,7 +68,7 @@ describe("TrackList non-empty render (Phase 5 scaffold)", () => {
     }
   });
 
-  it("iframe carries the track title (a11y) + lazy loading + fixed 166 height", () => {
+  it("iframe carries the title-override for a11y when track.title is set + lazy loading + fixed 166 height", () => {
     const { container } = render(<TrackList tracks={[baseTrack]} />);
     const iframe = container.querySelector("iframe");
     expect(iframe).not.toBeNull();
@@ -77,11 +77,31 @@ describe("TrackList non-empty render (Phase 5 scaffold)", () => {
     expect(iframe!.getAttribute("height")).toBe("166");
   });
 
-  it("renders the track title as an h2", () => {
+  it("iframe title falls back to 'SoundCloud player' when track.title is absent", () => {
+    const tracks: Track[] = [
+      { soundcloudUrl: "https://soundcloud.com/benjoslin/no-title" },
+    ];
+    const { container } = render(<TrackList tracks={tracks} />);
+    const iframe = container.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe!.getAttribute("title")).toBe("SoundCloud player");
+  });
+
+  it("renders an h2 for track.title only when set", () => {
     const { container } = render(<TrackList tracks={[baseTrack]} />);
     const h2 = container.querySelector("h2");
     expect(h2).not.toBeNull();
     expect(h2!.textContent).toContain("Test Track A");
+  });
+
+  it("skips the h2 heading entirely when track.title is absent (SoundCloud embed renders its own title)", () => {
+    const tracks: Track[] = [
+      { soundcloudUrl: "https://soundcloud.com/benjoslin/untitled" },
+    ];
+    const { container } = render(<TrackList tracks={tracks} />);
+    expect(container.querySelector("h2")).toBeNull();
+    // The iframe still renders so we know the item card mounted.
+    expect(container.querySelector("iframe")).not.toBeNull();
   });
 });
 

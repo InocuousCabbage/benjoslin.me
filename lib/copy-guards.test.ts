@@ -656,12 +656,38 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(c).not.toMatch(/export\s+const\s+photos\s*:\s*Photo\[\]\s*=\s*\[\s*\]/);
   });
 
-  // Phase 5 scaffold: tracks array intentionally empty until Ben provides
-  // SoundCloud URLs. Populate PR will swap this pin to a length>0 shape
-  // check matching Phase 4's populate discipline.
-  it("tracks data (Phase 5 scaffold) is intentionally empty until Ben provides SoundCloud URLs", () => {
+  // Phase 5 populate: Ben's 10 SoundCloud tracks, order as-sent. No
+  // per-track title/date/description overrides (SoundCloud widget
+  // renders each track's own metadata inside the iframe).
+  it("tracks data (Phase 5 populate) pins Ben's 10 SoundCloud URLs in as-sent order", () => {
     expect(Array.isArray(tracks)).toBe(true);
-    expect(tracks.length).toBe(0);
+    expect(tracks.length).toBe(10);
+    const expectedOrder = [
+      "https://soundcloud.com/ben_joslin/i_aint_even_jewelzformaster-6",
+      "https://soundcloud.com/ben_joslin/0223a1",
+      "https://soundcloud.com/ben_joslin/0123a1",
+      "https://soundcloud.com/ben_joslin/0323a",
+      "https://soundcloud.com/ben_joslin/i-never-want-this-to-end",
+      "https://soundcloud.com/ben_joslin/hedonism",
+      "https://soundcloud.com/ben_joslin/mving_in_slowmotionm4a",
+      "https://soundcloud.com/ben_joslin/shwmeluv",
+      "https://soundcloud.com/ben_joslin/sadsaturday-ft-andrew-brown",
+      "https://soundcloud.com/ben_joslin/right-now-right-now",
+    ];
+    expect(tracks.map((t) => t.soundcloudUrl)).toEqual(expectedOrder);
+    // No populate URL carries a ?si= tracking param (weemeemee's
+    // dispatch instruction: strip before storing).
+    for (const t of tracks) {
+      expect(t.soundcloudUrl.includes("?si=")).toBe(false);
+      expect(t.soundcloudUrl.startsWith("https://soundcloud.com/ben_joslin/")).toBe(true);
+      // No per-track overrides on this populate; SoundCloud renders
+      // its own title inside the iframe. A future edit that adds
+      // title/date/description to one track shouldn't fail this pin
+      // (it only asserts the SHIPPED overrides are absent right now).
+      expect(t.title).toBeUndefined();
+      expect(t.date).toBeUndefined();
+      expect(t.description).toBeUndefined();
+    }
   });
 
   it("Music page wires TrackList with the real tracks data + dark theme + eyebrow h1 + first-person intro", () => {
@@ -702,8 +728,13 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(g).toMatch(/height=["']166["']/);
     // Empty-state branch shape (same strengthening as Phase 4).
     expect(g).toMatch(/if\s*\(\s*tracks\.length\s*===\s*0\s*\)\s*\{/);
-    // iframe carries the track title for a11y.
-    expect(g).toMatch(/title=\{track\.title\}/);
+    // iframe carries the track title (or a fallback) for a11y so
+    // screen readers get a meaningful label when SoundCloud's own
+    // widget title hasn't loaded yet.
+    expect(g).toMatch(/title=\{track\.title\s*\?\?\s*["']SoundCloud player["']\}/);
+    // h2 renders only when track.title is set (SoundCloud embed
+    // renders its own metadata; no need to duplicate).
+    expect(g).toMatch(/track\.title\s*\?\s*\(/);
     // Lazy loading so many-tracks page doesn't hydrate every embed
     // on first paint.
     expect(g).toMatch(/loading=["']lazy["']/);
