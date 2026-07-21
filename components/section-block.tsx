@@ -4,6 +4,17 @@ import Link from "next/link";
 import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from "react";
 
 /**
+ * Sheen div extends `-inset-y-8` = 32px above and below the parent li.
+ * Load-bearing: any change to the sheen div's inset-y utility MUST
+ * update this constant in lockstep so the cursor-y JS write lands
+ * the gradient center on the actual pointer position instead of an
+ * offset. `2rem` in the Tailwind config = 32px at the default 16px
+ * root font-size; if the site ever ships a different root, both the
+ * class and this constant need re-scaling together.
+ */
+const SHEEN_Y_OFFSET_PX = 32;
+
+/**
  * Home section block (B1 + D2 + D4 + D6 composed).
  *
  * B1: typographic block, borderless, hairline `border-t border-white/5`
@@ -70,8 +81,19 @@ export function SectionBlock({
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
           const rect = el.getBoundingClientRect();
+          // Iter-D4-fade F1 (xhigh iter-1): --cursor-y is written in
+          // the SHEEN DIV's coordinate space, not the li's. The sheen
+          // div is -inset-y-8 (32px above the li), so div-y = li-y +
+          // SHEEN_Y_OFFSET_PX. Doing the offset here (option b) beats
+          // doing it in CSS calc(): the fallback default of 50% then
+          // resolves cleanly against the div box for reduced-motion /
+          // coarse-pointer users (calc(50% + 2rem) landed the glow
+          // near the bottom edge of the card).
           el.style.setProperty("--cursor-x", `${clientX - rect.left}px`);
-          el.style.setProperty("--cursor-y", `${clientY - rect.top}px`);
+          el.style.setProperty(
+            "--cursor-y",
+            `${clientY - rect.top + SHEEN_Y_OFFSET_PX}px`,
+          );
         });
       }
     : undefined;
@@ -111,7 +133,7 @@ export function SectionBlock({
         className="pointer-events-none absolute -inset-y-8 inset-x-0 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
         style={{
           background:
-            "radial-gradient(400px circle at var(--cursor-x) calc(var(--cursor-y) + 2rem), rgba(255,255,255,0.05), transparent 70%)",
+            "radial-gradient(400px circle at var(--cursor-x) var(--cursor-y), rgba(255,255,255,0.05), transparent 70%)",
         }}
       />
       <Link

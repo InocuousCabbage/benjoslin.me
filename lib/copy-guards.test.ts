@@ -284,19 +284,38 @@ describe("visual clone (enzosison.com pattern)", () => {
     // the JSX doesn't pass because the token survived in a docstring
     // comment. Same F8-class ironic-miss self-catch as PR #13 iter-0
     // (n=2 now for the shape-only-pin-passes-when-commented-out
-    // pattern; flagged to weemeemee for theta-wave codification).
+    // pattern; codified 7/21 into MEMORY.md).
     expect(block).toMatch(/className=["'][^"']*-inset-y-8/);
     expect(block).toMatch(/className=["'][^"']*inset-x-0/);
     expect(block).toMatch(/className=["'][^"']*blur-2xl/);
-    // calc() lives inside a style-string, not a className. Grep the
-    // template-literal / property-string context instead.
+    // Iter-1 F1 fix (xhigh iter-1 finding): cursor-y offset moved
+    // from CSS calc(var(--cursor-y) + 2rem) into JS so the
+    // reduced-motion / coarse-pointer fallback (--cursor-y default
+    // = 50%) resolves cleanly at the sheen div's vertical center
+    // instead of biased-toward-bottom (calc(50% + 2rem) landed the
+    // glow near the card's bottom edge). Pin the JS offset shape +
+    // the constant + require the gradient string to use bare
+    // var(--cursor-y) (NO calc).
+    expect(block).toMatch(/const\s+SHEEN_Y_OFFSET_PX\s*=\s*32\b/);
     expect(block).toMatch(
-      /background:[\s\S]{0,400}calc\(var\(--cursor-y\)\s*\+\s*2rem\)/,
+      /setProperty\(\s*["']--cursor-y["'],[\s\S]{0,120}\+\s*SHEEN_Y_OFFSET_PX/,
     );
-    // Regression guard against a revert to the old inset-0 (hard-clip)
-    // shape. The old sheen used absolute inset-0; a re-appearance
-    // there would ship the clip class again.
-    expect(block).not.toMatch(/absolute\s+inset-0\s+opacity-0[^"]*group-hover:opacity-100/);
+    expect(block).toMatch(
+      /background:[\s\S]{0,400}var\(--cursor-y\)(?!\s*\+)/,
+    );
+    // Iter-1 F3 fix: pin the gradient's 400px circle radius +
+    // transparent 70% falloff so a cosmetic edit that shrinks the
+    // spotlight to a pinpoint or hard-edges it fails loud.
+    expect(block).toMatch(/radial-gradient\(\s*400px\s+circle/);
+    expect(block).toMatch(/transparent\s+70%/);
+    // Iter-1 F2 fix: regression guard against a botched merge /
+    // partial revert that re-adds `inset-0` alongside the new
+    // `-inset-y-8 inset-x-0` (Tailwind cascade order means a later
+    // `inset-0` shorthand would override the per-side utils and
+    // reintroduce the clip class). Word-boundary check bans the
+    // token anywhere in any className string on this file, not just
+    // adjacent to `absolute`.
+    expect(block).not.toMatch(/className=["'][^"']*\binset-0\b/);
   });
 
   // Iter-9 V1: cursor-tracked hero shimmer. Client component wraps the
