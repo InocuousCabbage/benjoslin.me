@@ -1,5 +1,7 @@
 import { site } from "@/lib/site";
 import { CurrentYear } from "@/components/current-year";
+import { FooterParticles } from "@/components/footer-particles";
+import { GlitchText } from "@/components/glitch-text";
 
 /**
  * Enzo-pattern footer: copyright line + row of social icons. LinkedIn +
@@ -60,13 +62,28 @@ export function SiteFooter() {
   ];
 
   return (
-    <footer className="border-t border-white/10 py-8">
+    <footer className="border-t border-white/10">
+      {/* V2 canvas particle constellation. IntersectionObserver-gated so
+       * the rAF loop only runs while the footer is in view; reduced-
+       * motion path renders a static one-frame field. Sits above the
+       * copyright + socials block. */}
+      <div className="mx-auto max-w-5xl px-6 pt-4">
+        <FooterParticles />
+      </div>
       <div
         data-testid="site-footer-inner"
-        className="mx-auto flex max-w-5xl flex-col items-start justify-between gap-4 px-6 text-sm text-white/60 sm:flex-row sm:items-center"
+        className="mx-auto flex max-w-5xl flex-col items-start justify-between gap-4 px-6 py-8 text-sm text-white/60 sm:flex-row sm:items-center"
       >
+        {/* V3 glitch-text easter egg on copyright hover. Only the
+         * " All rights reserved." suffix is wrapped: the isCycled
+         * predicate inside GlitchText intentionally skips non-alnum
+         * characters (spaces, punctuation, © symbol) so glitching just
+         * "© " would be a no-op. GlitchText bails on prefers-reduced-
+         * motion + preserves original text in aria-label so screen
+         * readers stay quiet through the cycle. */}
         <p>
-          &copy; <CurrentYear /> All rights reserved.
+          &copy; <CurrentYear />
+          <GlitchText>{` All rights reserved.`}</GlitchText>
         </p>
         <div
           data-testid="site-footer-social-row"

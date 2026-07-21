@@ -287,9 +287,13 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(hero).toContain("(prefers-reduced-motion: reduce)");
     expect(hero).toContain("(hover: hover) and (pointer: fine)");
     expect(hero).toMatch(/addEventListener\(["']change["']/);
-    // rAF-throttled mousemove writing --shimmer-x.
+    // rAF-throttled mousemove writing --shimmer-x. Iter-11 same-class
+    // sweep: strengthen from string-existence to actual setProperty
+    // call shape so a refactor that keeps the import but drops the
+    // wire-up gets caught.
     expect(hero).toContain("requestAnimationFrame");
     expect(hero).toContain("--shimmer-x");
+    expect(hero).toMatch(/setProperty\(["']--shimmer-x["']/);
     // Idle-out timer for cursor-parked -> revert to ambient.
     expect(hero).toMatch(/setTimeout/);
     // SSR default of data-shimmer="idle" so first paint runs the ambient
@@ -314,6 +318,111 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(css).toMatch(/\.hero-shimmer\[data-shimmer=["']active["']\]\s*\{\s*animation:\s*none/);
     // Reduced-motion bail must strip the ambient animation.
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,200}\.hero-shimmer[\s\S]{0,200}animation:\s*none/);
+  });
+
+  // Iter-10 V2 + iter-11 F2/F3/F5 codifications. Pin shapes strengthened
+  // from existence-check to behavior-check where feasible.
+  it("FooterParticles (V2) has IO observing canvas, motionOk-return branch, and per-frame DPR sync", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "components", "footer-particles.tsx"),
+      "utf-8",
+    );
+    expect(p).toMatch(/["']use client["']/);
+    expect(p).toMatch(/<canvas/);
+    expect(p).toMatch(/pointer-events-none/);
+    expect(p).toMatch(/aria-hidden/);
+    // Iter-11 F2 codification: pin actual io.observe(canvas) call
+    // (specifically the `io` variable name from the IO effect, not any
+    // other .observe(canvas) like the ResizeObserver's) + disconnect
+    // presence. Prevents the dead-observer regression class.
+    expect(p).toContain("IntersectionObserver");
+    expect(p).toMatch(/\bio\.observe\(canvas\)/);
+    expect(p).toMatch(/\.disconnect\(\)/);
+    // A11y gates + change listeners for mid-session toggles.
+    expect(p).toContain("(prefers-reduced-motion: reduce)");
+    expect(p).toContain("(hover: hover) and (pointer: fine)");
+    expect(p).toMatch(/addEventListener\(["']change["']/);
+    expect(p).toContain("requestAnimationFrame");
+    expect(p).toContain("cancelAnimationFrame");
+    // Iter-11 F2: pin the actual early-return-after-static-draw shape
+    // inside the motionOk branch. Require `return;` (with semicolon)
+    // so a commented-out `// return removed` doesn't satisfy the pin.
+    expect(p).toMatch(
+      /if\s*\(\s*!motionOk\s*\)\s*\{\s*[\s\S]{0,120}drawStatic\(\);[\s\S]{0,60}return\s*;/,
+    );
+    // Iter-11 F5: DPR must be re-read inside syncCanvasSize per frame,
+    // not captured once at effect entry.
+    expect(p).toMatch(/window\.devicePixelRatio\s*\|\|\s*1/);
+    // Belt-and-suspenders: the DPR read line must sit inside a
+    // function body (syncCanvasSize). Grep the source for the
+    // signature pattern.
+    expect(p).toMatch(
+      /const\s+syncCanvasSize\s*=\s*\(\)\s*=>\s*\{[\s\S]{0,300}window\.devicePixelRatio/,
+    );
+  });
+
+  it("FooterParticles seeds particles ONCE per lifetime (iter-11 F3 fix)", () => {
+    const p = readFileSync(
+      join(REPO_ROOT, "components", "footer-particles.tsx"),
+      "utf-8",
+    );
+    // The one-shot seed guard.
+    expect(p).toMatch(/particlesRef\.current\.length\s*===\s*0/);
+    // Rescale-preserving-continuity helper is called on resize instead
+    // of a full reseed.
+    expect(p).toContain("rescaleParticles");
+    // Belt-and-suspenders: seedParticles calls must be few (one-shot
+    // seed effect + the empty-guard branch inside resize). Prevents a
+    // future refactor from calling seedParticles inside the render
+    // effect and reshuffling on every IO/motionOk toggle.
+    const seedCalls = p.match(/seedParticles\(/g) || [];
+    expect(seedCalls.length).toBeGreaterThanOrEqual(1);
+    expect(seedCalls.length).toBeLessThanOrEqual(3);
+  });
+
+  // Iter-10 V3 + iter-11 F1/F2 codifications.
+  it("GlitchText (V3) enforces alnum-only cycling + reduced-motion early return + settle-back", () => {
+    const g = readFileSync(
+      join(REPO_ROOT, "components", "glitch-text.tsx"),
+      "utf-8",
+    );
+    expect(g).toMatch(/["']use client["']/);
+    expect(g).toMatch(/onMouseEnter/);
+    expect(g).toMatch(/onMouseLeave/);
+    expect(g).toContain("(prefers-reduced-motion: reduce)");
+    // Iter-11 F2: pin the actual early-return shape so a future revert
+    // that drops the return statement gets caught.
+    expect(g).toMatch(/if\s*\(\s*!motionOk\s*\)\s*return/);
+    expect(g).toMatch(/aria-label=\{original\}/);
+    expect(g).toMatch(/aria-hidden/);
+    expect(g).toMatch(/clearTimeout/);
+    // Iter-11 F1 codification: alnum-only cycling predicate is load-
+    // bearing. Wrapping '©' or a space in GlitchText was a runtime
+    // no-op because those characters don't match the predicate. Pin
+    // the exact predicate shape.
+    expect(g).toMatch(/\/\[a-zA-Z0-9\]\/\.test/);
+    // Iter-11 F2: pin the settle-back-to-original step. Multiline
+    // anchored so a commented-out `// workingChars[i] = originalChar`
+    // doesn't satisfy the pin.
+    expect(g).toMatch(/^\s*workingChars\[i\]\s*=\s*originalChar/m);
+  });
+
+  it("SiteFooter mounts FooterParticles + wraps ONLY alnum-bearing text in GlitchText (iter-11 F1)", () => {
+    const f = readFileSync(
+      join(REPO_ROOT, "components", "site-footer.tsx"),
+      "utf-8",
+    );
+    expect(f).toMatch(/from ["']@\/components\/footer-particles["']/);
+    expect(f).toMatch(/from ["']@\/components\/glitch-text["']/);
+    expect(f).toContain("<FooterParticles");
+    expect(f).toContain("<GlitchText");
+    expect(f).toContain("All rights reserved");
+    expect(f).toContain("<CurrentYear");
+    expect(f).not.toContain("new Date()");
+    // Iter-11 F1 codification: the © symbol must not be wrapped in
+    // GlitchText because '©' fails the alnum-only cycling predicate
+    // (runtime no-op class). Guard against reintroduction.
+    expect(f).not.toMatch(/<GlitchText>\{?[`'"][^`'"]*©/);
   });
 
   it("Home page uses HeroName inside the hero H1 (site.name still single-source)", () => {
