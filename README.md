@@ -1,6 +1,8 @@
 # benjoslin.me
 
-Ben Joslin's personal website. Next.js 16 App Router + Tailwind v4 + shadcn/ui + sharp, deployed on Vercel.
+Ben Joslin's personal website. Next.js 16 App Router + Tailwind v4, deployed on Vercel.
+
+Visual language is a full clone of [enzosison.com](https://enzosison.com): dark theme, sparse typographic home hero, section blocks with a Read-more affordance, small footer social row.
 
 ## Local dev
 
@@ -17,19 +19,20 @@ Then open http://localhost:3000.
 npm test
 ```
 
-Runs `vitest`. Copy guards enforce Ben's standing rules (no em dashes, no AI-tell adjectives, no aspirational-completeness "done" phrasings) plus a few structural expectations about the home page and layout.
+Runs `vitest`. The `lib/copy-guards.test.ts` suite enforces Ben's standing rules (no em dashes, no AI-tell adjectives, no aspirational-completeness "done" phrasings) plus structural expectations for the pivoted visual clone (dark palette, Inter + Geist fonts, typographic section links, Enzo-pattern footer icon row).
 
 ## Stack
 
 - Next.js 16 (App Router, TypeScript, SSG)
-- Tailwind v4 with shadcn/ui primitives (Card, Button, Badge)
-- next/font for Raleway (display) + Roboto (body)
-- sharp for image processing (Bellamy-proven pipeline)
+- Tailwind v4
+- next/font for Inter (body) + Geist (display); both matched to enzosison.com's compiled Tailwind
+- Native cursor site-wide
+- sharp available for image processing in future phases
 - vitest for the copy-guards + structural tests
 
 ## Structure
 
-- `app/` App Router pages. Each of `/career`, `/education`, `/projects`, `/photo`, `/music` ships as a ComingSoon stub in Phase 0 and gets populated in later phases.
-- `components/` UI. `sphere-cursor.tsx` = the custom mix-blend-difference cursor that follows the mouse with a ~120ms trailing lag. `site-footer.tsx` = the minimal LinkedIn/GitHub/Instagram footer. `coming-soon.tsx` = the placeholder for stub routes.
-- `lib/site.ts` = canonical site facts (name, domain, socials) plus the home card ordering.
+- `app/` App Router pages. `/career`, `/education`, `/projects`, `/photo`, `/music` all resolve through `app/[section]/page.tsx` and ship as ComingSoon stubs until each phase lands.
+- `components/` UI. `site-header.tsx` = sticky top nav (Home + 5 sections, small font, white/60 to white on hover). `site-footer.tsx` = copyright line + inline SVG social icons (LinkedIn / GitHub / Instagram). `current-year.tsx` = client component that renders the live year so the footer doesn't freeze at build time. `coming-soon.tsx` = placeholder for stub routes.
+- `lib/site.ts` = canonical site facts (name, domain, socials pinned to exact known handles) plus `homeCards` and the optional `homeFooterPhoto` slot for the Enzo-style lifestyle photo at the bottom of the home page.
 - `lib/copy-guards.test.ts` = the regression guard suite.

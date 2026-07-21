@@ -46,6 +46,28 @@ function grepScanned(pattern: string, opts?: { ignoreCase?: boolean }): string[]
     .filter((line) => line && !line.endsWith("copy-guards.test.ts"));
 }
 
+describe("README content-guard (pivot-history stale-drift, iter-3 F17 codified)", () => {
+  // README.md drifted in iter-3 because the pivot rewrote fonts + removed
+  // the sphere cursor but README kept describing the pre-pivot state as
+  // current. Codify: bans the pre-pivot terms in README so a future pivot
+  // that forgets to update README fails loud.
+  const README = readFileSync(join(REPO_ROOT, "README.md"), "utf-8");
+  const BANNED_IN_README = [
+    "Raleway",
+    "Roboto",
+    "sphere-cursor",
+    "sphere cursor",
+    "hover-blue",
+    "#00b2ff",
+    "cursor: none",
+  ];
+  for (const term of BANNED_IN_README) {
+    it(`README does not describe pre-pivot term "${term}" as current`, () => {
+      expect(README).not.toContain(term);
+    });
+  }
+});
+
 describe("copy-guards", () => {
   it("does not ship em dash (U+2014) anywhere in the source tree", () => {
     expect(grepScanned("—")).toEqual([]);
@@ -196,7 +218,7 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(layout).toContain("<SiteFooter");
   });
 
-  it("SiteHeader nav includes Home + all 5 homeCards titles", () => {
+  it("SiteHeader nav spreads the entire homeCards array (no slice / filter drift)", () => {
     const header = readFileSync(
       join(REPO_ROOT, "components", "site-header.tsx"),
       "utf-8",
@@ -205,6 +227,39 @@ describe("visual clone (enzosison.com pattern)", () => {
     expect(header).toContain("homeCards");
     // Home is explicitly prepended.
     expect(header).toMatch(/["']Home["']/);
+    // xhigh iter-3 F18: strengthen. If SiteHeader stops spreading the whole
+    // homeCards array (e.g. .slice(0, 3), or a .filter that drops one) the
+    // render output silently drops sections. The header is data-driven so
+    // titles/hrefs don't appear as literal strings in the source; catch the
+    // drift by banning array-narrowing methods on the homeCards spread.
+    // A future re-order or shape change is fine; a truncation is not.
+    expect(header).not.toMatch(/homeCards\s*\.\s*slice\b/);
+    expect(header).not.toMatch(/homeCards\s*\.\s*filter\b/);
+    // Iterate pattern must be present so the array actually renders.
+    expect(header).toMatch(/\.map\s*\(/);
+    // Belt-and-suspenders: assert item.title AND item.href are rendered so
+    // a future refactor that drops one field is caught. (item name may be
+    // anything - the test just needs the property access shape to exist.)
+    expect(header).toMatch(/\.title/);
+    expect(header).toMatch(/\.href/);
+  });
+
+  it("SiteFooter uses a client CurrentYear component (no SSG-frozen year)", () => {
+    // xhigh iter-3 F19 codified: `new Date().getFullYear()` in a Server
+    // Component freezes at build time. Fix pattern is a client component
+    // that reads the year at hydration. Guard against a revert that puts
+    // `new Date()` back into SiteFooter itself.
+    const footer = readFileSync(
+      join(REPO_ROOT, "components", "site-footer.tsx"),
+      "utf-8",
+    );
+    expect(footer).toContain("<CurrentYear");
+    expect(footer).not.toContain("new Date()");
+    const currentYear = readFileSync(
+      join(REPO_ROOT, "components", "current-year.tsx"),
+      "utf-8",
+    );
+    expect(currentYear).toMatch(/["']use client["']/);
   });
 
   it("SiteFooter uses Enzo copyright pattern + icon row (LinkedIn/GitHub/Instagram)", () => {

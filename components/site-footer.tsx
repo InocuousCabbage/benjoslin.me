@@ -1,4 +1,5 @@
 import { site } from "@/lib/site";
+import { CurrentYear } from "@/components/current-year";
 
 /**
  * Enzo-pattern footer: copyright line + row of social icons. LinkedIn +
@@ -65,7 +66,7 @@ export function SiteFooter() {
         className="mx-auto flex max-w-5xl flex-col items-start justify-between gap-4 px-6 text-sm text-white/60 sm:flex-row sm:items-center"
       >
         <p>
-          {site.name} &copy; {new Date().getFullYear()} All rights reserved.
+          {site.name} &copy; <CurrentYear /> All rights reserved.
         </p>
         <div
           data-testid="site-footer-social-row"
